@@ -1,5 +1,5 @@
 First build the traji C++ library
-```
+```shell
 mkdir build
 cd build
 cmake ..
