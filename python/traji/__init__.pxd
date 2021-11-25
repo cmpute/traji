@@ -1,1 +1,1 @@
-from traji._lib cimport Path
+from traji._lib cimport Point, Path
