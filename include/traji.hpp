@@ -41,10 +41,17 @@ class Path
 {
 protected:
     LineString _line; // the geometry of the line string
-    std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line
+    std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line. First value is always zero
 
     /// Update _distance values
     void update_distance();
+
+    /// Calculate feasible smooth radius given the input as max limit
+    std::vector<TFloat> calc_feasible_radius(TFloat smooth_radius) const;
+
+private:
+    /// respacing with smooth_radius = 0
+    Path respacing0(TFloat resolution) const;
 
 public:
     friend class PathPosition;
@@ -56,6 +63,13 @@ public:
 
     inline std::size_t size() const { return _line.size(); }
     inline TFloat length() const { return _distance.back(); }
+    inline std::vector<TFloat> segment_lengths() const
+    {
+        std::vector<TFloat> lengths(_line.size() - 1);
+        for (int i = 1; i < _line.size(); i++)
+            lengths[i-1] = _distance[i] - _distance[i-1];
+        return lengths;
+    }
 
     Point& operator[](std::size_t idx) { return _line[idx]; }
     const Point& operator[](std::size_t idx) const { return _line[idx]; }
@@ -72,6 +86,7 @@ public:
     {
         return tangent_at(PathPosition::from_s(*this, s));
     }
+    // TODO: let tangent_at also supports smooth_radius, this should be only applicable to tangent_at
     TFloat tangent_at(const PathPosition &pos) const;
 
     /// Get the value interpolated by the distance from the beginning
@@ -90,20 +105,24 @@ public:
     inline const LineString& data() const { return _line; }
 
     /// Return the path in a form with equally space points (interpolating over S)
-    /// @param smooth_radius If the radius is larger than zero, the corner of the polyline
-    ///                      will be rounded by a bezier curve with the given radius when interpolating.
-    Path respacing(TFloat resolution, float smooth_radius = 0) const;
+    /// The starting and end point of the original line string is guaranteed to be included and not smoothed
+    /// @param smooth_radius The distance from original vertex to the new smoothed vertex.
+    Path respacing(TFloat resolution, TFloat smooth_radius = 0) const;
 
     /// Return the path with each segment's length less than the given resolution
     /// This method will retain the original corner points, unlike respacing function
     Path densify(TFloat resolution) const;
+
+    /// Return the path with rounded corners. This method doesn't change the density of
+    /// the points on the line segments
+    Path smooth(TFloat resolution, TFloat smooth_radius = 0) const;
 };
 
 /// non-parametric linestring with time
 class Trajectory : Path
 {
 protected:
-    std::vector<float> _timestamp; // the timestamp over each point
+    std::vector<TFloat> _timestamp; // the timestamp over each point
 
 public:
     /// Get the point indicated by the time
@@ -122,10 +141,9 @@ class QuinticPolynomialTrajectory
 public:
     Point point_from(TFloat s) const;
     TFloat tangent_from(TFloat s) const;
-    
 
     TFloat project(Point point) const;
-    Trajectory rollout() const;
+    Trajectory rasterize() const;
 };
 
 // ==================================== Hybrid paths ====================================
