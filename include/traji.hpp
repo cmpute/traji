@@ -71,6 +71,10 @@ public:
         return lengths;
     }
 
+    /// Access the underlying boost linestring
+    inline LineString& data() { return _line; }
+    inline const LineString& data() const { return _line; }
+
     Point& operator[](std::size_t idx) { return _line[idx]; }
     const Point& operator[](std::size_t idx) const { return _line[idx]; }
 
@@ -99,10 +103,6 @@ public:
     /// Get the signed distance and foot point from a point to the path
     /// @return (distance to the path, projection point position)
     std::pair<TFloat, PathPosition> project(const Point &point) const;
-
-    /// Access the underlying boost linestring
-    inline LineString& data() { return _line; }
-    inline const LineString& data() const { return _line; }
 
     /// Return the path in a form with equally space points (interpolating over S)
     /// The starting and end point of the original line string is guaranteed to be included and not smoothed

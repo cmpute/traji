@@ -3,6 +3,7 @@
 #include <numeric>
 #include <tuple>
 #include <string>
+#include <iostream>
 #include "traji.hpp"
 
 using namespace std;
@@ -30,9 +31,9 @@ namespace traji
         /// Calculate the signed distance from point to the segment **line**
         /// @return (distance to line, fraction of the foot point)
         /// The distance is positive if the point is at left hand side of the direction of line (p0 -> p1)
-        std::pair<TFloat, TFloat> sdistance(const Point &p0, const Point &p1, const TFloat l, const Point &p)
+        pair<TFloat, TFloat> sdistance(const Point &p0, const Point &p1, const TFloat l, const Point &p)
         {
-            auto x0 = p0.get<0>(), y0 = p0.get<0>();
+            auto x0 = p0.get<0>(), y0 = p0.get<1>();
             auto x1 = p1.get<0>(), y1 = p1.get<1>();
             auto x = p.get<0>(), y = p.get<1>();
 
@@ -42,7 +43,7 @@ namespace traji
             if (l == 0)
             {
                 TFloat ds = hypot(x - x0, y - y0);
-                return std::make_pair(ds, 0);
+                return make_pair(ds, 0);
             }
 
             auto ds = (dx*y - dy*x + x0*y1 - x1*y0) / l;
@@ -53,11 +54,11 @@ namespace traji
 
         inline TFloat tangent(const Point &p0, const Point &p1)
         {
-            return std::atan2(p1.get<1>() - p0.get<1>(), p1.get<0>() - p0.get<0>());
+            return atan2(p1.get<1>() - p0.get<1>(), p1.get<0>() - p0.get<0>());
         }
 
         /// Convert the sdistance to normal unsigned (squared) distance
-        inline TFloat distance2(const std::pair<TFloat, TFloat> &sdist, const TFloat l)
+        inline TFloat distance2(const pair<TFloat, TFloat> &sdist, const TFloat l)
         {
             auto ds = sdist.first, d0 = sdist.second * l;
             if (sdist.second < 0)
@@ -175,7 +176,7 @@ namespace traji
     {
         vector<pair<TFloat, TFloat>> dists(_line.size() - 1);
         vector<TFloat> comp_dists(_line.size() - 1); // actual distance for comparison
-        for (int i = 1; i < dists.size(); i++)
+        for (int i = 1; i < _line.size(); i++)
         {
             // calculate signed distance
             int iprev = i - 1;
@@ -224,8 +225,8 @@ namespace traji
 
         // sort segment lengths
         vector<size_t> indices;
-        std::iota(indices.begin(), indices.end(), 0);
-        std::sort(indices.begin(), indices.end(),
+        iota(indices.begin(), indices.end(), 0);
+        sort(indices.begin(), indices.end(),
             [&seglen](int left, int right) -> bool {
                 // sort indices according to corresponding array element
                 return seglen[left] < seglen[right];
