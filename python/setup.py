@@ -13,9 +13,9 @@ setup(
     # url='https://github.com/cmpute/pcl.py',
     # download_url='https://github.com/cmpute/pcl.py/archive/master.zip',
     # license='BSD-3-Clause',
-    # packages=['pcl', 'pcl.common', 'pcl.filters', 'pcl.io', 'pcl.visualization'],
+    packages=['traji'],
     # install_requires=['numpy>=1.11'],
-    # setup_requires=['cython>=0.29', 'scikit-build'],
+    setup_requires=['cython>=0.29', 'scikit-build'],
     # extras_require={'test': ['pytest']},
     # package_data={'pcl': [p.lstrip("pcl/") for p in (glob.glob("pcl/*.pyi") + glob.glob("pcl/**/*.pyi"))]},
     classifiers=[

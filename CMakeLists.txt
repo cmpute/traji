@@ -4,8 +4,9 @@ project(traji CXX)
 find_package(Boost REQUIRED COMPONENTS)
 add_library(traji src/Path.cpp)
 target_include_directories(
-    traji PUBLIC ${Boost_INCLUDE_DIRS}
+  traji PUBLIC ${Boost_INCLUDE_DIRS}
 )
+set_target_properties(traji PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(traji PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -15,8 +16,8 @@ target_link_libraries(traji PUBLIC Boost::boost)
 ##### Installation #####
 
 install(
-    FILES include/traji.hpp
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/include
+  FILES include/traji.hpp
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/include
 )
 install(TARGETS traji
         DESTINATION lib
@@ -32,10 +33,10 @@ export(EXPORT trajiTargets
 include(CMakePackageConfigHelpers)
 # generate the config file that is includes the exports
 configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/traji-config.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/trajiConfig.cmake"
-    INSTALL_DESTINATION "lib/cmake/traji"
-    # NO_SET_AND_CHECK_MACRO
-    # NO_CHECK_REQUIRED_COMPONENTS_MACRO
+  "${CMAKE_CURRENT_BINARY_DIR}/trajiConfig.cmake"
+  INSTALL_DESTINATION "lib/cmake/traji"
+  # NO_SET_AND_CHECK_MACRO
+  # NO_CHECK_REQUIRED_COMPONENTS_MACRO
 )
 
 write_basic_package_version_file(

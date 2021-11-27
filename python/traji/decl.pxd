@@ -1,8 +1,11 @@
+from libcpp.string cimport string
+from libcpp.vector cimport vector
 ctypedef float TFloat
 
 cdef extern from "traji.hpp" namespace "traji":
     cdef cppclass Point:
         Point ()
+        Point (TFloat x, TFloat y)
         TFloat x "get<0>" ()
         TFloat y "get<1>" ()
 
@@ -19,5 +22,24 @@ cdef extern from "traji.hpp" namespace "traji":
 
     cdef cppclass Path:
         Path ()
+        Path (vector[Point].iterator begin, vector[Point].iterator end)
+
+        size_t size()
+        TFloat length()
+
+        Point& operator[](size_t)
+
         Point point_from(TFloat s)
         Point point_at(const PathPosition &pos)
+
+        TFloat tangent_from(TFloat s)
+        TFloat tangent_at(const PathPosition &pos)
+
+        TFloat interpolate_from(const vector[TFloat] &values, TFloat s)
+        TFloat interpolate_from(const vector[TFloat] &values, const PathPosition &pos)
+
+        vector[Point]& data()
+
+cdef extern from "traji.hpp" namespace "std":
+    string to_string(const Point &value)
+    string to_string(const Path &value)

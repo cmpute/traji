@@ -6,6 +6,7 @@
 #include <tuple>
 #include <boost/geometry.hpp>
 
+
 namespace traji {
 
 typedef float TFloat;
@@ -15,6 +16,8 @@ typedef boost::geometry::model::linestring<Point> LineString;
 // forward declaration
 class Path;
 class Trajectory;
+
+// ==================================== Non-parametric paths ====================================
 
 /// Representation of a position in the path (and possibly extended line)
 /// When the position is on the path, 0 <= segment < #segments, 0 <= fraction < 1
@@ -33,48 +36,29 @@ struct PathPosition
     static PathPosition from_s(const Path &path, TFloat s);
 };
 
-// TODO: this class should not be in public API
-struct Segment
-{
-    /// Get the point that meets (p-p0) = fraction * (p1-p0)
-    inline static Point interpolate(const Point &p0, const Point &p1, TFloat fraction)
-    {
-        auto x0 = p0.get<0>(), y0 = p0.get<1>();
-        auto x1 = p0.get<0>(), y1 = p0.get<1>();
-        return Point { x0 + (x1 - x0) * fraction, y0 + (y1 - y0) * fraction };
-    }
-
-    /// Calculate the signed distance from point to the segment **line**
-    /// @return (distance to line, fraction of the foot point)
-    /// The distance is positive if the point is at left hand side of the direction of line (p0 -> p1)
-    static std::pair<TFloat, TFloat> sdistance(const Point &p0, const Point &p1, const TFloat l, const Point &rhs);
-
-    /// Convert the sdistance to normal unsigned (squared) distance
-    static inline TFloat distance2(const std::pair<TFloat, TFloat> &sdist, const TFloat l)
-    {
-        auto ds = sdist.first, d0 = sdist.second * l;
-        if (sdist.second < 0)
-            return ds * ds + d0 * d0;
-        else if (sdist.second > 1)
-            return ds * ds + (d0 - 1) * (d0 - 1);
-        else
-            return ds * ds;
-    }
-};
-
 /// (immutable) non-parametric linestring
 class Path
 {
 protected:
-    LineString _line;
-    std::vector<TFloat> _distance;
+    LineString _line; // the geometry of the line string
+    std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line
 
+    /// Update _distance values
     void update_distance();
 
 public:
     friend class PathPosition;
 
+    Path() {}
+    template<typename Iterator>
+    Path(Iterator begin, Iterator end) : _line(begin, end) { update_distance(); }
+    Path(std::initializer_list<Point> l) : _line(l) { update_distance(); }
+
+    inline std::size_t size() const { return _line.size(); }
     inline TFloat length() const { return _distance.back(); }
+
+    Point& operator[](std::size_t idx) { return _line[idx]; }
+    const Point& operator[](std::size_t idx) const { return _line[idx]; }
 
     /// Get the point indicated by the distance from the beginning
     inline Point point_from(TFloat s) const
@@ -84,35 +68,42 @@ public:
     Point point_at(const PathPosition &pos) const;
 
     /// Get the tagent at the point indicated by the distance from the beginning
-    TFloat tangent_from(TFloat s) const
+    inline TFloat tangent_from(TFloat s) const
     {
         return tangent_at(PathPosition::from_s(*this, s));
     }
     TFloat tangent_at(const PathPosition &pos) const;
 
     /// Get the value interpolated by the distance from the beginning
-    TFloat interpolate_from(const std::vector<TFloat> &values, TFloat s) const;
+    inline TFloat interpolate_from(const std::vector<TFloat> &values, TFloat s) const
+    {
+        return interpolate_at(values, PathPosition::from_s(*this, s));
+    }
+    TFloat interpolate_at(const std::vector<TFloat> &values, const PathPosition &pos) const;
 
     /// Get the signed distance and foot point from a point to the path
     /// @return (distance to the path, projection point position)
     std::pair<TFloat, PathPosition> project(const Point &point) const;
 
     /// Access the underlying boost linestring
+    inline LineString& data() { return _line; }
     inline const LineString& data() const { return _line; }
 
-    /// Return the path in a form with equally space points
+    /// Return the path in a form with equally space points (interpolating over S)
     /// @param smooth_radius If the radius is larger than zero, the corner of the polyline
-    ///                      will be rounded by the radius when interpolating. If the radius is zero,
-    ///                      the corner of the polyline will be reserved. Otherwise (by default), the
-    ///                      corner of polyline is not reserved.
-    Path respacing(TFloat resolution, float smooth_radius = -1) const;
+    ///                      will be rounded by a bezier curve with the given radius when interpolating.
+    Path respacing(TFloat resolution, float smooth_radius = 0) const;
+
+    /// Return the path with each segment's length less than the given resolution
+    /// This method will retain the original corner points, unlike respacing function
+    Path densify(TFloat resolution) const;
 };
 
 /// non-parametric linestring with time
 class Trajectory : Path
 {
 protected:
-    std::vector<float> _timestamp;
+    std::vector<float> _timestamp; // the timestamp over each point
 
 public:
     /// Get the point indicated by the time
@@ -124,16 +115,45 @@ public:
 };
 
 
-// parametric path / trajectory
-class QuintPoly
+// ==================================== Parametric paths ====================================
+
+class QuinticPolynomialTrajectory
 {
 public:
     Point point_from(TFloat s) const;
     TFloat tangent_from(TFloat s) const;
+    
+
     TFloat project(Point point) const;
     Trajectory rollout() const;
 };
 
+// ==================================== Hybrid paths ====================================
+
+// TODO: support linestring with heterogeneous segment types (called HeteroPath?)
+// this could be the better implementation for rounded corner
+enum class SegmentType
+{
+    Line, // no params
+    Arc, // param: radius
+    QuadraticBezier, // param: x, y of the control point
+    CubicBezier, // param: x1, y1, x2, y2 of the two control points
+
+    // For polynomials, the argument range need to be normalized to [0, 1]
+    QuarticPoly, // params: polynomial coeffs
+    QuinticPoly // params: polynomial coeffs
+};
+
+struct HeteroSegment
+{
+    SegmentType type;
+    Point start, end;
+    std::vector<TFloat> params;
+};
+
+// ==================================== binary functions ====================================
+
+inline TFloat distance(const Point &lhs, const Point &rhs) { return boost::geometry::distance(lhs, rhs); }
 TFloat distance(const Path &lhs, const Point &rhs);
 
 std::vector<Point> intersection(const Path &lhs, const Path &rhs);
@@ -143,6 +163,18 @@ Point cartesian_to_frenet(const Path &ref, const Point &point);
 Point frenet_to_cartesian(const Path &ref, const Point &point);
 Path cartesian_to_frenet(const Path &ref, const Path &path);
 Path frenet_to_cartesian(const Path &ref, const Path &path);
+
+} // namespace traji
+
+
+// ==================================== extended std functions ====================================
+
+namespace std
+{
+
+std::string to_string(const traji::Point &value);
+std::string to_string(const traji::Path &value);
+std::string to_string(const traji::PathPosition &value);
 
 }
 
