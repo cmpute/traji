@@ -11,11 +11,17 @@ cdef extern from "traji.hpp" namespace "traji":
         TFloat x "get<0>" ()
         TFloat y "get<1>" ()
 
+        bint operator==(Point)
+        bint operator!=(Point)
+
     cdef cppclass PathPosition:
         PathPosition()
         size_t component
         size_t segment
         TFloat fraction
+
+        bint operator==(PathPosition)
+        bint operator!=(PathPosition)
 
         TFloat to_s(const Path &path)
 
@@ -32,6 +38,9 @@ cdef extern from "traji.hpp" namespace "traji":
 
         vector[Point]& data()
         Point& operator[](size_t)
+
+        bint operator==(Path)
+        bint operator!=(Path)
 
         Point point_from(TFloat s)
         Point point_at(const PathPosition &pos)

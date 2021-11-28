@@ -24,7 +24,7 @@ namespace traji
         inline Point interpolate(const Point &p0, const Point &p1, TFloat fraction)
         {
             auto x0 = p0.get<0>(), y0 = p0.get<1>();
-            auto x1 = p0.get<0>(), y1 = p0.get<1>();
+            auto x1 = p1.get<0>(), y1 = p1.get<1>();
             return Point { x0 + (x1 - x0) * fraction, y0 + (y1 - y0) * fraction };
         }
 
@@ -208,8 +208,8 @@ namespace traji
                 result._line.push_back(_line[i]);
             else
             {
-                for (int i = 0; i < mul; i++)
-                    result._line.push_back(segment::interpolate(_line[i-1], _line[i], (TFloat) i / mul));
+                for (size_t j = 1; j < mul; j++)
+                    result._line.push_back(segment::interpolate(_line[i-1], _line[i], (TFloat) j / mul));
             }
         }
 
@@ -265,7 +265,7 @@ namespace traji
         while(residual_s < segment_length)
         {
             result._line.push_back(segment::interpolate(
-                _line[0], _line[1],
+                _line[segment_idx], _line[segment_idx+1],
                 residual_s / segment_length
             ));
 
@@ -367,6 +367,54 @@ namespace traji
         return result;
     }
 
+    Path Path::smooth(TFloat resolution, TFloat smooth_radius) const
+    {
+        // shortcuts
+        if (_line.size() <= 2 || smooth_radius == 0)
+            return *this;
+
+        Path result;
+        result._line.push_back(_line.front());
+        auto feas_radius = calc_feasible_radius(smooth_radius);
+        auto seglen = segment_lengths();
+
+        for (int i = 0; i < seglen.size() - 1; i++)
+        {
+            auto arc_params = arc::solve_smooth(
+                _line[i], _line[i+1], _line[i+2],
+                seglen[i], seglen[i+1],
+                feas_radius[i]);
+            auto arc_len = arc_params.angle * arc_params.radius;
+
+            int mul = ceil(arc_len / resolution);
+            if (mul <= 1)
+            {
+                result._line.push_back(segment::interpolate(
+                    _line[i], _line[i+1],
+                    1 - feas_radius[i] / seglen[i]
+                ));
+                result._line.push_back(segment::interpolate(
+                    _line[i+1], _line[i+2],
+                    feas_radius[i] / seglen[i]
+                ));
+            }
+            else
+            {
+                for (size_t j = 0; j < mul; j++)
+                    result._line.push_back(arc::interpolate(arc_params, (TFloat) i / mul));
+            }
+        }
+
+        result._line.push_back(_line.back());
+        result.update_distance();
+        return result;
+    }
+
+    Path Path::resample(const vector<TFloat> &s_list) const
+    {
+        ; // TODO: implement using double-growing. If a element in s_list is not in order, then use point_at to find it
+    }
+
     vector<Point> intersection(const Path &lhs, const Path &rhs)
     {
         vector<Point> plist;
@@ -385,6 +433,16 @@ namespace traji
         std::transform(plist.begin(), plist.end(), result.begin(),
             [&lhs, &rhs](const Point& p){ return make_pair(lhs.project(p).second, rhs.project(p).second); });
         return result;
+    }
+
+    bool operator==(const Path& lhs, const Path& rhs)
+    {
+        if(lhs.data().size() != rhs.data().size())
+            return false;
+        for(size_t i = 0; i < lhs.data().size(); i++)
+            if (lhs[i] != rhs[i])
+                return false;
+        return true;
     }
 }
 

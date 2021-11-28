@@ -116,6 +116,10 @@ public:
     /// Return the path with rounded corners. This method doesn't change the density of
     /// the points on the line segments
     Path smooth(TFloat resolution, TFloat smooth_radius = 0) const;
+
+    /// Return a path represented by a list of distance to start. 
+    /// The best performance is achieved when s_list is sorted ascendingly.
+    Path resample(const std::vector<TFloat> &s_list) const;
 };
 
 /// non-parametric linestring with time
@@ -145,6 +149,8 @@ public:
     TFloat project(Point point) const;
     Trajectory rasterize() const;
 };
+
+// TODO: spline interpolated paths are also parametric paths
 
 // ==================================== Hybrid paths ====================================
 
@@ -182,10 +188,29 @@ Point frenet_to_cartesian(const Path &ref, const Point &point);
 Path cartesian_to_frenet(const Path &ref, const Path &path);
 Path frenet_to_cartesian(const Path &ref, const Path &path);
 
+// ==================================== standard functions ====================================
+
+inline bool operator==(const PathPosition& lhs, const PathPosition& rhs)
+{
+    return lhs.component == rhs.component && lhs.segment == rhs.segment && lhs.fraction == rhs.fraction;
+}
+inline bool operator!=(const PathPosition& lhs, const PathPosition& rhs) { return !(lhs == rhs); }
+
+bool operator==(const Path& lhs, const Path& rhs);
+inline bool operator!=(const Path& lhs, const Path& rhs) { return !(lhs == rhs); }
+
 } // namespace traji
 
+namespace boost { namespace geometry { namespace model
+{
+    
+inline bool operator==(const traji::Point& lhs, const traji::Point& rhs)
+{
+    return lhs.get<0>() == rhs.get<0>() && lhs.get<1>() == rhs.get<1>();
+}
+inline bool operator!=(const traji::Point& lhs, const traji::Point& rhs) { return !(lhs == rhs); }
 
-// ==================================== extended std functions ====================================
+}}} // namespace boost.geometry.model
 
 namespace std
 {

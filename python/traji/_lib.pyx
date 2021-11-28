@@ -28,9 +28,12 @@ cdef class Point:
 
     def __str__(self):
         return to_string(self._data).decode()
-
     def __repr__(self):
         return "<Point %s>" % to_string(self._data).decode()
+    def __eq__(self, other):
+        return isinstance(other, Point) and self._data == (<Point>other)._data
+    def __ne__(self, other):
+        return not (self == other)
 
 cdef class PathPosition:
     def __init__(self, size_t component=0, size_t segment=0, TFloat fraction=0, bint _noinit=False):
@@ -57,9 +60,12 @@ cdef class PathPosition:
 
     def __str__(self):
         return to_string(self._data).decode()
-
     def __repr__(self):
         return "<PathPosition %d, %d, %.3f>" % (self._data.component, self._data.segment, self._data.fraction)
+    def __eq__(self, other):
+        return isinstance(other, PathPosition) and self._data == (<PathPosition>other)._data
+    def __ne__(self, other):
+        return not (self == other)
 
 cdef class _PathIterator:
     cdef vector[cPoint].iterator it, end
@@ -74,8 +80,9 @@ cdef class _PathIterator:
 
 cdef class Path:
     def __init__(self, points, bint _noinit=False):
-        cdef vector[cPoint] cpoints = vector[cPoint](len(points)) 
+        cdef vector[cPoint] cpoints
         if not _noinit and points:
+            cpoints = vector[cPoint](len(points))
             for i, p in enumerate(points):
                 if isinstance(p, Point):
                     cpoints[i] = (<Point>p)._data
@@ -85,25 +92,25 @@ cdef class Path:
 
     @staticmethod
     cdef Path wrap(const cPath &value):
-        cdef Path p = Path(0, _noinit=True)
+        cdef Path p = Path(None, _noinit=True)
         p._data = value
         return p
 
     def __len__(self):
         return self._data.size()
-
     def __str__(self):
         return to_string(self._data).decode()
-
     def __repr__(self):
         return "<Path with %d points>" % self._data.size()
-
+    def __eq__(self, other):
+        return isinstance(other, Path) and self._data == (<Path>other)._data
+    def __ne__(self, other):
+        return not (self == other)
     def __iter__(self):
         cdef _PathIterator it = _PathIterator()
         it.it = self._data.data().begin()
         it.end = self._data.data().end()
         return it
-
     def __getitem__(self, size_t index):
         cdef Point p = Point(0, _noinit=True)
         p._data = self._data.data()[index]
@@ -138,4 +145,4 @@ cdef class Path:
     def densify(self, TFloat resolution):
         return Path.wrap(self._data.densify(resolution))
     def smooth(self, TFloat resolution, TFloat smooth_radius=0):
-        pass
+        return Path.wrap(self._data.smooth(resolution, smooth_radius))
