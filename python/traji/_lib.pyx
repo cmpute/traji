@@ -1,3 +1,4 @@
+from libc.stdlib cimport malloc, free
 from libcpp.vector cimport vector
 from libcpp.utility cimport pair
 from cython.operator cimport dereference as deref
@@ -120,6 +121,30 @@ cdef class Path:
         def __get__(self): return self._data.length()
     property segment_lengths:
         def __get__(self): return self._data.segment_lengths()
+
+    def __getbuffer__(self, Py_buffer *buffer, int flags):
+        cdef Py_ssize_t *shape = <Py_ssize_t*>malloc(2*sizeof(Py_ssize_t))
+        cdef Py_ssize_t *strides = <Py_ssize_t*>malloc(2*sizeof(Py_ssize_t))
+        shape[0] = self._data.size()
+        shape[1] = 2
+        strides[0] = sizeof(TFloat) * 2
+        strides[1] = sizeof(TFloat)
+
+        buffer.buf = self._data.data().data()
+        buffer.format = 'f' if sizeof(TFloat) == 4 else 'd'
+        buffer.internal = NULL
+        buffer.itemsize = sizeof(TFloat)
+        buffer.len = sizeof(TFloat) * 2
+        buffer.ndim = 2
+        buffer.obj = self
+        buffer.readonly = 1
+        buffer.shape = shape
+        buffer.strides = strides
+        buffer.suboffsets = NULL
+
+    def __releasebuffer__(self, Py_buffer *buffer):
+        free(buffer.shape)
+        free(buffer.strides)
 
     def point_from(self, TFloat s):
         return Point.wrap(self._data.point_from(s))

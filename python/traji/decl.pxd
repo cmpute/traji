@@ -56,6 +56,7 @@ cdef extern from "traji.hpp" namespace "traji":
         Path respacing(TFloat resolution, TFloat smooth_radius)
         Path densify(TFloat resolution)
         Path smooth(TFloat resolution, TFloat smooth_radius)
+        Path resample(const vector[TFloat] &s_list)
 
 cdef extern from "traji.hpp" namespace "std":
     string to_string(const Point &value)
