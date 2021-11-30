@@ -2,16 +2,19 @@ cmake_minimum_required(VERSION 3.5)
 project(traji CXX)
 
 find_package(Boost REQUIRED COMPONENTS)
-add_library(traji src/Path.cpp)
-target_include_directories(
-  traji PUBLIC ${Boost_INCLUDE_DIRS}
-)
+find_package(Eigen3 3.3 REQUIRED)
+
+add_library(traji src/Path.cpp src/Frenet.cpp)
+# target_include_directories(
+#   traji PUBLIC ${Boost_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS}
+# )
 set_target_properties(traji PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(traji PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries(traji PUBLIC Boost::boost)
+target_link_libraries (traji PUBLIC Boost::boost)
+target_link_libraries (traji PUBLIC Eigen3::Eigen)
 
 ##### Installation #####
 

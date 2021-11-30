@@ -11,14 +11,6 @@ namespace bg = boost::geometry;
 
 namespace traji
 {
-    #ifndef M_PI
-    constexpr TFloat pi = 3.14159265358979323846;
-    constexpr TFloat pi2 = pi/2;
-    #else
-    constexpr TFloat pi = M_PI;
-    constexpr TFloat pi2 = M_PI_2;
-    #endif
-
     /// Some helper functions for line segments
     namespace segment
     {
@@ -133,11 +125,11 @@ namespace traji
     {
         auto segment_iter = lower_bound(path._distance.begin(), path._distance.end(), s);
         auto segment_idx = distance(path._distance.begin(), segment_iter);
-        auto s0 = path._distance[segment_idx];
+        auto s0 = path._distance[segment_idx], s1 = path._distance[segment_idx+1];
 
         PathPosition result;
         result.segment = segment_idx;
-        result.fraction = (s - s0) / (path._distance[segment_idx+1] - s0);
+        result.fraction = (s - s0) / (s1 - s0);
         return result;
     }
 
@@ -154,6 +146,33 @@ namespace traji
             s += distance(_line[i], _line[i-1]);
             _distance[i] = s;
         }
+    }
+
+    vector<PathPosition> PathPosition::from_s(const Path &path, const vector<TFloat> &s_list)
+    {
+        vector<PathPosition> result;
+        result.reserve(s_list.size());
+
+        TFloat cur_s = 0;
+        size_t cur_idx = 1; // index of first point that has s larger than cur_s
+        for (auto s : s_list)
+            if (s < cur_s)
+                result.push_back(PathPosition::from_s(path, s));
+            else
+            {
+                while (s > path._distance[cur_idx] && cur_idx < (path.size() - 1))
+                    cur_idx++;
+
+                PathPosition pos;
+                pos.segment = cur_idx - 1;
+                auto s0 = path._distance[cur_idx-1], s1 = path._distance[cur_idx];
+                pos.fraction = (s - s0) / (s1 - s0);
+                result.push_back(pos);
+
+                cur_s = s;
+            }
+
+        return result;
     }
 
     Point Path::point_at(const PathPosition &pos) const
@@ -417,7 +436,11 @@ namespace traji
 
     Path Path::resample(const vector<TFloat> &s_list) const
     {
-        ; // TODO: implement using double-growing. If a element in s_list is not in order, then use point_at to find it
+        Path result;
+        result._line.reserve(s_list.size());
+        vector<PathPosition> pos_list = PathPosition::from_s(*this, s_list);
+        for (auto pos : pos_list)
+            result._line.push_back(point_at(pos));
     }
 
     vector<Point> intersection(const Path &lhs, const Path &rhs)

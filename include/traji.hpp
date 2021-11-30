@@ -5,17 +5,28 @@
 #include <utility>
 #include <tuple>
 #include <boost/geometry.hpp>
-
+#include <Eigen/Core>
 
 namespace traji {
 
 typedef float TFloat;
+typedef Eigen::Matrix<TFloat, 2, 1> Vector2;
 typedef boost::geometry::model::point<TFloat, 2, boost::geometry::cs::cartesian> Point;
 typedef boost::geometry::model::linestring<Point> LineString;
+
+#ifndef M_PI
+constexpr TFloat pi = 3.14159265358979323846;
+constexpr TFloat pi2 = pi/2;
+#else
+constexpr TFloat pi = M_PI;
+constexpr TFloat pi2 = M_PI_2;
+#endif
 
 // forward declaration
 class Path;
 class Trajectory;
+class HeteroPath;
+class QuinticPolynomialTrajectory;
 
 // ==================================== Non-parametric paths ====================================
 
@@ -34,6 +45,7 @@ struct PathPosition
 
     /// Convert the distance to the beginning to s
     static PathPosition from_s(const Path &path, TFloat s);
+    static std::vector<PathPosition> from_s(const Path &path, const std::vector<TFloat> &s_list);
 };
 
 /// (immutable) non-parametric linestring
@@ -116,6 +128,7 @@ public:
     /// Return the path with rounded corners. This method doesn't change the density of
     /// the points on the line segments
     Path smooth(TFloat resolution, TFloat smooth_radius = 0) const;
+    // TODO: return a HeteroPath
 
     /// Return a path represented by a list of distance to start. 
     /// The best performance is achieved when s_list is sorted ascendingly.
@@ -175,6 +188,29 @@ struct HeteroSegment
     std::vector<TFloat> params;
 };
 
+class HeteroPath
+{
+    std::vector<HeteroSegment> segments;
+
+    Path rasterize(TFloat resolution);
+};
+
+// ==================================== frenet paths ====================================
+
+/// In frenet coordinate, Point::x represents s along the path (forward = positive), Point::y
+/// represents l along the normal direction of the path (left = positive)
+namespace frenet
+{
+    Point from_cartesian(const Path &ref, const Point &point);
+    Point to_cartesian(const Path &ref, const Point &point);
+
+    std::pair<Point, Vector2> from_cartesian(const Path &ref, const Point &point, const Vector2& velocity);
+    std::pair<Point, Vector2> to_cartesian(const Path &ref, const Point &point, const Vector2& velocity);
+
+    Path from_cartesian(const Path &ref, const Path &path);
+    Path to_cartesian(const Path &ref, const Path &path);
+}
+
 // ==================================== binary functions ====================================
 
 inline TFloat distance(const Point &lhs, const Point &rhs) { return boost::geometry::distance(lhs, rhs); }
@@ -182,11 +218,6 @@ TFloat distance(const Path &lhs, const Point &rhs);
 
 std::vector<Point> intersection(const Path &lhs, const Path &rhs);
 std::vector<std::pair<PathPosition, PathPosition>> arg_intersection(const Path &lhs, const Path &rhs);
-
-Point cartesian_to_frenet(const Path &ref, const Point &point);
-Point frenet_to_cartesian(const Path &ref, const Point &point);
-Path cartesian_to_frenet(const Path &ref, const Path &path);
-Path frenet_to_cartesian(const Path &ref, const Path &path);
 
 // ==================================== standard functions ====================================
 
