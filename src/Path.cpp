@@ -13,8 +13,10 @@ namespace traji
 {
     #ifndef M_PI
     constexpr TFloat pi = 3.14159265358979323846;
+    constexpr TFloat pi2 = pi/2;
     #else
     constexpr TFloat pi = M_PI;
+    constexpr TFloat pi2 = M_PI_2;
     #endif
 
     /// Some helper functions for line segments
@@ -76,8 +78,8 @@ namespace traji
         struct ArcParams
         {
             Point center;
-            TFloat radius; // radius < 0 means center is on the right of the line
-            TFloat angle;
+            TFloat radius;
+            TFloat angle; // angle < 0 means center is on the right of the line
             TFloat start_angle;
         };
 
@@ -95,29 +97,26 @@ namespace traji
             auto tan1 = segment::tangent(p0, pivot);
             auto tan2 = segment::tangent(pivot, p1);
 
-            auto angle = warp_angle(tan2 - tan1);
-            auto p2c_dist = smooth_radius / cos(angle / 2);
+            auto turn_angle = warp_angle(tan2 - tan1);
+            auto half = abs(turn_angle / 2);
+            auto p2c_dist = smooth_radius / cos(half);
 
-            auto x0 = p0.get<0>(), y0 = p0.get<1>();
-            auto x1 = p1.get<0>(), y1 = p1.get<1>();
-            auto xp = pivot.get<0>(), yp = pivot.get<1>();
+            TFloat radius = smooth_radius * tan(half);
+            TFloat angle_start = tan1 + (turn_angle > 0 ? -pi2 : pi2);
+            TFloat angle_mid = angle_start + (turn_angle > 0 ? half : -half);
 
-            auto dx0 = xp - x0, dy0 = yp - y0;
-            auto dx1 = x1 - xp, dy1 = y1 - yp;
+            Point center(pivot.get<0>() - p2c_dist * cos(angle_mid),
+                         pivot.get<1>() - p2c_dist * sin(angle_mid));
 
-            auto p2c_x = (dx1 / l1 - dx0 / l0) * p2c_dist;
-            auto p2c_y = (dy1 / l1 - dy0 / l0) * p2c_dist;
+            TFloat angle = pi - abs(turn_angle);
 
-            Point center(xp + p2c_x, yp + p2c_y);
-            TFloat radius = smooth_radius * tan(angle / 2);
-            TFloat angle_start = tan1 + angle > 0 ? -pi : pi;
-
-            return ArcParams {center, radius, (pi - abs(angle)) / 2, tan1};
+            return ArcParams {center, radius, turn_angle > 0 ? angle : -angle, angle_start};
         }
 
         inline Point interpolate(const ArcParams &params, TFloat fraction)
         {
             auto angular_pos = params.start_angle + params.angle * fraction;
+
             return Point(
                 params.center.get<0>() + cos(angular_pos) * params.radius,
                 params.center.get<1>() + sin(angular_pos) * params.radius
@@ -208,7 +207,7 @@ namespace traji
                 result._line.push_back(_line[i]);
             else
             {
-                for (size_t j = 1; j < mul; j++)
+                for (size_t j = 1; j <= mul; j++)
                     result._line.push_back(segment::interpolate(_line[i-1], _line[i], (TFloat) j / mul));
             }
         }
@@ -224,7 +223,7 @@ namespace traji
         vector<TFloat> seglen = segment_lengths();
 
         // sort segment lengths
-        vector<size_t> indices;
+        vector<size_t> indices(seglen.size());
         iota(indices.begin(), indices.end(), 0);
         sort(indices.begin(), indices.end(),
             [&seglen](int left, int right) -> bool {
@@ -302,7 +301,8 @@ namespace traji
 
         auto residual_s = resolution;
         vector<TFloat> feas_radius = calc_feasible_radius(smooth_radius);
-        auto segment_length = _distance[1] - feas_radius[0];
+        auto segment_length = seglen[0] - feas_radius[0]; // current effective segment length
+        TFloat segment_soffset = 0; // start offset
         size_t segment_idx = 0;
 
         bool on_arc = false;
@@ -319,7 +319,12 @@ namespace traji
                     on_arc = false;
 
                     segment_idx++;
-                    segment_length = seglen[segment_idx];
+                    if (segment_idx == _line.size() - 2)
+                        segment_length = seglen[segment_idx] - feas_radius[segment_idx-1];
+                    else
+                        segment_length = seglen[segment_idx] - feas_radius[segment_idx-1] - feas_radius[segment_idx];
+                    segment_soffset = feas_radius[segment_idx-1];
+                    continue;
                 }
                 else
                 {
@@ -328,6 +333,7 @@ namespace traji
                         arc_params,
                         residual_s / segment_length
                     ));
+                    residual_s += resolution;
                 }
             }
             else // on segment
@@ -335,29 +341,28 @@ namespace traji
                 if (residual_s >= segment_length)
                 {
                     // jump to the next arc
-                    if (segment_idx >= _line.size() - 1)
+                    if (segment_idx >= _line.size() - 2)
                         break;
 
                     residual_s -= segment_length;
 
                     on_arc = true;
-                    auto arc_params = arc::solve_smooth(
+                    arc_params = arc::solve_smooth(
                         _line[segment_idx], _line[segment_idx+1], _line[segment_idx+2],
                         seglen[segment_idx], seglen[segment_idx+1],
                         feas_radius[segment_idx]);
-                    segment_length = arc_params.radius * arc_params.angle;
+                    segment_length = abs(arc_params.radius * arc_params.angle);
                 }
                 else
                 {
                     // interpolate on line segment
                     result._line.push_back(segment::interpolate(
-                        _line[0], _line[1],
-                        residual_s / segment_length
+                        _line[segment_idx], _line[segment_idx+1],
+                        (residual_s + segment_soffset) / seglen[segment_idx]
                     ));
+                    residual_s += resolution;
                 }
             }
-
-            residual_s += resolution;
         }
 
         if (residual_s > segment_length)
@@ -384,7 +389,7 @@ namespace traji
                 _line[i], _line[i+1], _line[i+2],
                 seglen[i], seglen[i+1],
                 feas_radius[i]);
-            auto arc_len = arc_params.angle * arc_params.radius;
+            auto arc_len = abs(arc_params.angle * arc_params.radius);
 
             int mul = ceil(arc_len / resolution);
             if (mul <= 1)
@@ -400,8 +405,8 @@ namespace traji
             }
             else
             {
-                for (size_t j = 0; j < mul; j++)
-                    result._line.push_back(arc::interpolate(arc_params, (TFloat) i / mul));
+                for (size_t j = 0; j <= mul; j++)
+                    result._line.push_back(arc::interpolate(arc_params, (TFloat) j / mul));
             }
         }
 
