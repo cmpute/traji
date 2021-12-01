@@ -31,7 +31,7 @@ constexpr TFloat pi2 = M_PI_2;
 class Path;
 class Trajectory;
 class HeteroPath;
-class QuinticPolynomialTrajectory;
+class QuinticPolyTrajectory;
 
 // ==================================== Non-parametric paths ====================================
 
@@ -51,6 +51,11 @@ struct PathPosition
     /// Convert the distance to the beginning to s
     static PathPosition from_s(const Path &path, TFloat s);
     static std::vector<PathPosition> from_s(const Path &path, const std::vector<TFloat> &s_list);
+
+    /// Convert the position to the distance to the timestamp
+    // TODO: implement
+    TFloat to_t(const Trajectory &traj);
+    static PathPosition from_t(const Trajectory &traj, TFloat t);
 };
 
 /// (immutable) non-parametric linestring
@@ -59,6 +64,7 @@ class Path
 protected:
     LineString _line; // the geometry of the line string
     std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line. First value is always zero
+    // TODO: remove the leading zero in _distance
 
     /// Update _distance values
     void update_distance();
@@ -72,7 +78,7 @@ private:
 
 public:
     friend class PathPosition;
-    friend class QuinticPolynomialTrajectory;
+    friend class QuinticPolyTrajectory;
 
     Path() {}
     template<typename Iterator>
@@ -133,8 +139,7 @@ public:
 
     /// Return the path with rounded corners. This method doesn't change the density of
     /// the points on the line segments
-    Path smooth(TFloat resolution, TFloat smooth_radius = 0) const;
-    // TODO: return a HeteroPath
+    HeteroPath smooth(TFloat smooth_radius) const; // XXX: add param to select smooth curve type
 
     /// Return a path represented by a list of distance to start. 
     /// The best performance is achieved when s_list is sorted ascendingly.
@@ -142,20 +147,22 @@ public:
 };
 
 /// non-parametric linestring with time
-class Trajectory : Path
+class Trajectory : public Path
 {
 protected:
-    std::vector<TFloat> _timestamp; // the timestamp over each point
+    std::vector<TFloat> _timestamps; // the timestamp over each point
 
 public:
-    friend class QuinticPolynomialTrajectory;
+    friend class QuinticPolyTrajectory;
 
     Trajectory() {}
+    Trajectory(const Path& path, const std::vector<TFloat> &timestamps)
+        : Path(path), _timestamps(timestamps) {}
     template<typename Iterator, typename TIterator>
     Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end)
-        : Path(begin, end), _timestamp(t_begin, t_end) { update_distance(); }
+        : Path(begin, end), _timestamps(t_begin, t_end) { update_distance(); }
 
-    const std::vector<TFloat> timestamp() const { return _timestamp; }
+    const std::vector<TFloat> timestamps() const { return _timestamps; }
 
     /// Get the point indicated by the time
     Point point_at(TFloat t) const;
@@ -168,15 +175,17 @@ public:
 
 // ==================================== Parametric paths ====================================
 
-class QuinticPolynomialTrajectory
+class QuinticPolyTrajectory
 {
 protected:
     Vector6 _x_coeffs, _y_coeffs; // high-order to low-order
     TFloat _T; // the trajectory starts at t=0 and ends at t=T
-    QuinticPolynomialTrajectory(const Vector6 &x_coeffs, const Vector6 &y_coeffs, TFloat T) : _x_coeffs(x_coeffs), _y_coeffs(y_coeffs), _T(T) {}
+
+    QuinticPolyTrajectory(const Vector6 &x_coeffs, const Vector6 &y_coeffs, TFloat T)
+        : _x_coeffs(x_coeffs), _y_coeffs(y_coeffs), _T(T) {}
 
     /// Solve optimal trajectory based on x and y states (including 1st and 2nd state derivatives)
-    QuinticPolynomialTrajectory(const Vector3 &x0, const Vector3 &xT,
+    QuinticPolyTrajectory(const Vector3 &x0, const Vector3 &xT,
                                 const Vector3 &y0, const Vector3 &yT, TFloat T);
 
 public:
@@ -217,9 +226,18 @@ struct HeteroSegment
 
 class HeteroPath
 {
-    std::vector<HeteroSegment> segments;
+protected:
+    std::vector<HeteroSegment> _segments;
+    std::vector<TFloat> _distance; // distance to the end of the segment
 
+public:
+    HeteroPath() {}
+
+    friend class Path;
+
+    /// Convert to Path by rasterizing each segments
     Path rasterize(TFloat resolution);
+    /// Convert to Path by only rasterizing curves (excl. line segment)
     Path rasterize_curve(TFloat resolution);
 };
 
@@ -241,8 +259,14 @@ namespace frenet
     Path from_cartesian(const Path &ref, const Path &path);
     Path to_cartesian(const Path &ref, const Path &path);
 
-    Trajectory from_cartesian(const Trajectory &ref, const Trajectory &path);
-    Trajectory to_cartesian(const Trajectory &ref, const Trajectory &path);
+    inline Trajectory from_cartesian(const Path &ref, const Trajectory &path)
+    {
+        return Trajectory(from_cartesian(ref, path), path.timestamps());
+    }
+    inline Trajectory to_cartesian(const Path &ref, const Trajectory &path)
+    {
+        return Trajectory(to_cartesian(ref, path), path.timestamps());
+    }
 }
 
 // ==================================== binary functions ====================================

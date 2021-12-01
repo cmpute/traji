@@ -4,7 +4,8 @@
 
 using namespace std;
 
-namespace traji { namespace frenet {
+namespace traji { namespace frenet
+{
 
 Point from_cartesian(const Path &ref, const Point &point)
 {

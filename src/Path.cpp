@@ -391,46 +391,79 @@ namespace traji
         return result;
     }
 
-    Path Path::smooth(TFloat resolution, TFloat smooth_radius) const
+    HeteroPath Path::smooth(TFloat smooth_radius) const
     {
-        // shortcuts
-        if (_line.size() <= 2 || smooth_radius == 0)
-            return *this;
+        HeteroPath result;
+        if (_line.size() == 0)
+            return result;
+        if (_line.size() == 2)
+        {
+            result._segments.emplace_back(HeteroSegment {
+                SegmentType::Line, _line[0], _line[1], std::vector<TFloat>()
+            });
+            result._distance = {_distance[1]};
+            return result;
+        }
 
-        Path result;
-        result._line.push_back(_line.front());
         auto feas_radius = calc_feasible_radius(smooth_radius);
         auto seglen = segment_lengths();
+        result._segments.reserve(seglen.size());
+        result._distance.reserve(seglen.size());
 
-        for (int i = 0; i < seglen.size() - 1; i++)
+        // add first segment
+        auto last_point = segment::interpolate(
+            _line[0], _line[1],
+            1 - feas_radius[0] / seglen[0]
+        );
+        result._segments.emplace_back(HeteroSegment {
+            SegmentType::Line, _line.front(), last_point, std::vector<TFloat>()
+        });
+        result._distance.push_back(seglen.front() - feas_radius.front());
+
+        for (size_t i = 0; i < seglen.size() - 1; i++)
         {
+            // add i-th segment
+            if (i > 0)
+            {
+                auto new_point = segment::interpolate(
+                    _line[i], _line[i+1],
+                    1 - feas_radius[i] / seglen[i]
+                );
+                result._segments.emplace_back(HeteroSegment {
+                    SegmentType::Line, last_point, new_point,
+                    std::vector<TFloat>()
+                });
+                result._distance.push_back(result._distance.back() +
+                    seglen[i] - feas_radius[i-1] - feas_radius[i]);
+                last_point = new_point;
+            }
+
+            // add i-th curve
             auto arc_params = arc::solve_smooth(
                 _line[i], _line[i+1], _line[i+2],
                 seglen[i], seglen[i+1],
                 feas_radius[i]);
             auto arc_len = abs(arc_params.angle * arc_params.radius);
 
-            int mul = ceil(arc_len / resolution);
-            if (mul <= 1)
-            {
-                result._line.push_back(segment::interpolate(
-                    _line[i], _line[i+1],
-                    1 - feas_radius[i] / seglen[i]
-                ));
-                result._line.push_back(segment::interpolate(
-                    _line[i+1], _line[i+2],
-                    feas_radius[i] / seglen[i]
-                ));
-            }
-            else
-            {
-                for (size_t j = 0; j <= mul; j++)
-                    result._line.push_back(arc::interpolate(arc_params, (TFloat) j / mul));
-            }
+            auto new_point = segment::interpolate(
+                _line[i+1], _line[i+2],
+                feas_radius[i] / seglen[i+1]
+            );
+            result._segments.emplace_back(HeteroSegment {
+                SegmentType::Arc, last_point, new_point,
+                std::vector<TFloat> {arc_params.center.get<0>(), arc_params.center.get<1>()}
+            });
+            result._distance.push_back(result._distance.back() + arc_len);
+            last_point = new_point;
         }
 
-        result._line.push_back(_line.back());
-        result.update_distance();
+        // add last segment
+        result._segments.emplace_back(HeteroSegment {
+            SegmentType::Line, last_point, _line.back(),
+            std::vector<TFloat>()
+        });
+        result._distance.push_back(seglen.back() - feas_radius.back());
+
         return result;
     }
 

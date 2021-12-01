@@ -1,8 +1,9 @@
 #include <cmath>
 #include "traji.hpp"
 
-namespace traji {
-    QuinticPolynomialTrajectory::QuinticPolynomialTrajectory(
+namespace traji
+{
+    QuinticPolyTrajectory::QuinticPolyTrajectory(
         const Vector3 &x0, const Vector3 &xT,
         const Vector3 &y0, const Vector3 &yT, TFloat T
     ) : _x_coeffs(), _y_coeffs(), _T(T)
@@ -29,7 +30,7 @@ namespace traji {
         _y_coeffs << c345y(2), c345y(1), c345y(0), c012y(2), c012y(1), c012y(0);
     }
 
-    Point QuinticPolynomialTrajectory::point_at(TFloat t) const
+    Point QuinticPolyTrajectory::point_at(TFloat t) const
     {
         TFloat x = _x_coeffs(0), y = _y_coeffs(0);
         for (size_t i = 1; i < 6; i++)
@@ -40,7 +41,7 @@ namespace traji {
         return Point(x, y);
     }
 
-    Trajectory QuinticPolynomialTrajectory::rasterize(TFloat t_resolution) const
+    Trajectory QuinticPolyTrajectory::rasterize(TFloat t_resolution) const
     {
         auto t = VectorX::LinSpaced((size_t)ceil(_T / t_resolution), 0, _T).array();
          
@@ -55,11 +56,11 @@ namespace traji {
 
         Trajectory result;
         result._line.reserve(t.rows());
-        result._timestamp.reserve(t.rows());
+        result._timestamps.reserve(t.rows());
         for (size_t i = 0; i < t.rows(); i++)
         {
             result._line.emplace_back(x(i), y(i));
-            result._timestamp.emplace_back(t(i));
+            result._timestamps.emplace_back(t(i));
         }
         result.update_distance();
         return result;
