@@ -11,6 +11,11 @@ namespace traji {
 
 typedef float TFloat;
 typedef Eigen::Matrix<TFloat, 2, 1> Vector2;
+typedef Eigen::Matrix<TFloat, 3, 1> Vector3;
+typedef Eigen::Matrix<TFloat, 3, 3> Matrix3;
+typedef Eigen::Matrix<TFloat, 6, 1> Vector6;
+typedef Eigen::Matrix<TFloat, -1, 1> VectorX;
+typedef Eigen::Array<TFloat, -1, 1> ArrayX;
 typedef boost::geometry::model::point<TFloat, 2, boost::geometry::cs::cartesian> Point;
 typedef boost::geometry::model::linestring<Point> LineString;
 
@@ -67,6 +72,7 @@ private:
 
 public:
     friend class PathPosition;
+    friend class QuinticPolynomialTrajectory;
 
     Path() {}
     template<typename Iterator>
@@ -142,6 +148,15 @@ protected:
     std::vector<TFloat> _timestamp; // the timestamp over each point
 
 public:
+    friend class QuinticPolynomialTrajectory;
+
+    Trajectory() {}
+    template<typename Iterator, typename TIterator>
+    Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end)
+        : Path(begin, end), _timestamp(t_begin, t_end) { update_distance(); }
+
+    const std::vector<TFloat> timestamp() const { return _timestamp; }
+
     /// Get the point indicated by the time
     Point point_at(TFloat t) const;
     TFloat tangent_at(TFloat t) const;
@@ -155,28 +170,38 @@ public:
 
 class QuinticPolynomialTrajectory
 {
-public:
-    Point point_from(TFloat s) const;
-    TFloat tangent_from(TFloat s) const;
+protected:
+    Vector6 _x_coeffs, _y_coeffs; // high-order to low-order
+    TFloat _T; // the trajectory starts at t=0 and ends at t=T
+    QuinticPolynomialTrajectory(const Vector6 &x_coeffs, const Vector6 &y_coeffs, TFloat T) : _x_coeffs(x_coeffs), _y_coeffs(y_coeffs), _T(T) {}
 
-    TFloat project(Point point) const;
-    Trajectory rasterize() const;
+    /// Solve optimal trajectory based on x and y states (including 1st and 2nd state derivatives)
+    QuinticPolynomialTrajectory(const Vector3 &x0, const Vector3 &xT,
+                                const Vector3 &y0, const Vector3 &yT, TFloat T);
+
+public:
+    const Vector6& x_coeffs() const { return _x_coeffs; }
+    const Vector6& y_coeffs() const { return _y_coeffs; }
+
+    Point point_at(TFloat t) const;
+    TFloat tangent_at(TFloat t) const;
+
+    Trajectory rasterize(TFloat t_resolution) const;
 };
 
 // TODO: spline interpolated paths are also parametric paths
 
 // ==================================== Hybrid paths ====================================
 
-// TODO: support linestring with heterogeneous segment types (called HeteroPath?)
 // this could be the better implementation for rounded corner
 enum class SegmentType
 {
     Line, // no params
-    Arc, // param: radius
+    Arc, // param: x, y of the arc center 
     QuadraticBezier, // param: x, y of the control point
     CubicBezier, // param: x1, y1, x2, y2 of the two control points
 
-    // For polynomials, the argument range need to be normalized to [0, 1]
+    // For polynomials, the latent parameter range need to be normalized to [0, 1]
     QuarticPoly, // params: polynomial coeffs
     QuinticPoly // params: polynomial coeffs
 };
@@ -185,6 +210,8 @@ struct HeteroSegment
 {
     SegmentType type;
     Point start, end;
+
+    /// Params for the segments, see SegmentType for details
     std::vector<TFloat> params;
 };
 
@@ -193,6 +220,7 @@ class HeteroPath
     std::vector<HeteroSegment> segments;
 
     Path rasterize(TFloat resolution);
+    Path rasterize_curve(TFloat resolution);
 };
 
 // ==================================== frenet paths ====================================
@@ -207,8 +235,14 @@ namespace frenet
     std::pair<Point, Vector2> from_cartesian(const Path &ref, const Point &point, const Vector2& velocity);
     std::pair<Point, Vector2> to_cartesian(const Path &ref, const Point &point, const Vector2& velocity);
 
+    // TODO: add conversion for dynamic states from/to frenet
+    // REF: https://blog.csdn.net/davidhopper/article/details/79162385#t6
+
     Path from_cartesian(const Path &ref, const Path &path);
     Path to_cartesian(const Path &ref, const Path &path);
+
+    Trajectory from_cartesian(const Trajectory &ref, const Trajectory &path);
+    Trajectory to_cartesian(const Trajectory &ref, const Trajectory &path);
 }
 
 // ==================================== binary functions ====================================

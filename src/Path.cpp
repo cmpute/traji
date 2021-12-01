@@ -453,7 +453,7 @@ namespace traji
     vector<pair<PathPosition, PathPosition>> arg_intersection(const Path &lhs, const Path &rhs)
     {
         // TODO: implement this arg intersection algorithm using sweeping line or even
-        //       Bentley–Ottmann algorithm to avoid calling "project"
+        //       Bentley-Ottmann algorithm to avoid calling "project"
         // Also need to benchmark the performance vs boost version
 
         vector<Point> plist = intersection(lhs, rhs);

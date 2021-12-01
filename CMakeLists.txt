@@ -4,7 +4,7 @@ project(traji CXX)
 find_package(Boost REQUIRED COMPONENTS)
 find_package(Eigen3 3.3 REQUIRED)
 
-add_library(traji src/Path.cpp src/Frenet.cpp)
+add_library(traji src/Path.cpp src/Frenet.cpp src/Trajectory.cpp)
 # target_include_directories(
 #   traji PUBLIC ${Boost_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS}
 # )
