@@ -3,6 +3,22 @@
 
 namespace traji
 {
+    TFloat PathPosition::to_t(const Trajectory &traj)
+    {
+        traj._timestamps[segment] + (traj._timestamps[segment+1] - traj._timestamps[segment]) * fraction;
+    }
+    PathPosition PathPosition::from_t(const Trajectory &traj, TFloat t)
+    {
+        auto segment_iter = lower_bound(traj._timestamps.begin(), traj._timestamps.end(), t);
+        auto segment_idx = distance(traj._timestamps.begin(), segment_iter);
+        auto t0 = traj._timestamps[segment_idx], t1 = traj._timestamps[segment_idx+1];
+
+        PathPosition result;
+        result.segment = segment_idx;
+        result.fraction = (t - t0) / (t1 - t0);
+        return result;
+    }
+
     QuinticPolyTrajectory::QuinticPolyTrajectory(
         const Vector3 &x0, const Vector3 &xT,
         const Vector3 &y0, const Vector3 &yT, TFloat T

@@ -68,6 +68,34 @@ cdef class PathPosition:
     def __ne__(self, other):
         return not (self == other)
 
+    @classmethod
+    def from_s(cls, path, s):
+        cdef vector[TFloat] s_list
+        cdef vector[cPathPosition] p_list
+        if isinstance(path, Path):
+            if isinstance(s, (int, float)):
+                return PathPosition.wrap(cPathPosition.from_s(deref((<Path>path)._ptr), <TFloat>s))
+            elif isinstance(s, (list, tuple)):
+                s_list = s
+                p_list = cPathPosition.from_s_batch(deref((<Path>path)._ptr), s_list)
+                return [PathPosition.wrap(p) for p in p_list]
+            else:
+                raise ValueError("Invalid s input!")
+        else:
+            raise ValueError("Unsupported path type!")
+
+    def to_s(self, path):
+        if isinstance(path, Path):
+            return self._data.to_s(deref((<Path>path)._ptr))
+        else:
+            raise ValueError("Unsupported path type!")
+
+    def to_t(self, traj):
+        if isinstance(traj, Trajectory):
+            return self._data.to_s(deref((<Trajectory>traj)._ptr))
+        else:
+            raise ValueError("Unsupported path input!")
+
 cdef class _PathIterator:
     cdef vector[cPoint].iterator it, end
 
@@ -80,57 +108,66 @@ cdef class _PathIterator:
             return p
 
 cdef class Path:
-    def __init__(self, points, bint _noinit=False):
+    def __cinit__(self, points, bint _noinit=False):
         cdef vector[cPoint] cpoints
-        if not _noinit and points:
-            cpoints = vector[cPoint](len(points))
-            for i, p in enumerate(points):
-                if isinstance(p, Point):
-                    cpoints[i] = (<Point>p)._data
-                else:
-                    cpoints[i] = cPoint(p[0], p[1])
-            self._data = cPath(cpoints.begin(), cpoints.end())
+        if type(self) is Path:
+            if _noinit:
+                self._ptr = NULL
+            elif points:
+                cpoints = vector[cPoint](len(points))
+                for i, p in enumerate(points):
+                    if isinstance(p, Point):
+                        cpoints[i] = (<Point>p)._data
+                    else:
+                        cpoints[i] = cPoint(p[0], p[1])
+                self._ptr = new cPath(cpoints.begin(), cpoints.end())
+            else:
+                self._ptr = new cPath()
+
+    def __dealloc__(self):
+        if type(self) is Path:
+            del self._ptr
 
     @staticmethod
     cdef Path wrap(const cPath &value):
         cdef Path p = Path(None, _noinit=True)
-        p._data = value
+        p._ptr = new cPath(value)
         return p
 
     def __len__(self):
-        return self._data.size()
+        return self._ptr.size()
     def __str__(self):
-        return to_string(self._data).decode()
+        return to_string(deref(self._ptr)).decode()
     def __repr__(self):
-        return "<Path with %d points>" % self._data.size()
+        return "<Path with %d points>" % self._ptr.size()
     def __eq__(self, other):
-        return isinstance(other, Path) and self._data == (<Path>other)._data
+        return isinstance(other, Path) and self._ptr == (<Path>other)._ptr
     def __ne__(self, other):
         return not (self == other)
     def __iter__(self):
         cdef _PathIterator it = _PathIterator()
-        it.it = self._data.data().begin()
-        it.end = self._data.data().end()
+        it.it = self._ptr.data().begin()
+        it.end = self._ptr.data().end()
         return it
     def __getitem__(self, size_t index):
         cdef Point p = Point(0, _noinit=True)
-        p._data = self._data.data()[index]
+        p._data = self._ptr.data()[index]
         return p
 
     property length:
-        def __get__(self): return self._data.length()
+        def __get__(self): return self._ptr.length()
     property segment_lengths:
-        def __get__(self): return self._data.segment_lengths()
+        def __get__(self): return self._ptr.segment_lengths()
 
     def __getbuffer__(self, Py_buffer *buffer, int flags):
         cdef Py_ssize_t *shape = <Py_ssize_t*>malloc(2*sizeof(Py_ssize_t))
         cdef Py_ssize_t *strides = <Py_ssize_t*>malloc(2*sizeof(Py_ssize_t))
-        shape[0] = self._data.size()
+        shape[0] = self._ptr.size()
         shape[1] = 2
         strides[0] = sizeof(TFloat) * 2
         strides[1] = sizeof(TFloat)
 
-        buffer.buf = self._data.data().data()
+        buffer.buf = self._ptr.data().data()
         buffer.format = 'f' if sizeof(TFloat) == 4 else 'd'
         buffer.internal = NULL
         buffer.itemsize = sizeof(TFloat)
@@ -147,14 +184,14 @@ cdef class Path:
         free(buffer.strides)
 
     def point_from(self, TFloat s):
-        return Point.wrap(self._data.point_from(s))
+        return Point.wrap(self._ptr.point_from(s))
     def point_at(self, PathPosition pos):
-        return Point.wrap(self._data.point_at(pos._data))
+        return Point.wrap(self._ptr.point_at(pos._data))
 
     def tangent_from(self, TFloat s):
-        return self._data.tangent_from(s)
+        return self._ptr.tangent_from(s)
     def tangent_at(self, PathPosition pos):
-        return self._data.tangent_at(pos._data)
+        return self._ptr.tangent_at(pos._data)
 
     def interpolate_from(self, values, TFloat s):
         pass
@@ -162,12 +199,54 @@ cdef class Path:
         pass
 
     def project(self, Point point):
-        cdef pair[TFloat, cPathPosition] result = self._data.project(point._data)
+        cdef pair[TFloat, cPathPosition] result = self._ptr.project(point._data)
         return result.first, PathPosition.wrap(result.second)
 
     def respacing(self, TFloat resolution, TFloat smooth_radius=0):
-        return Path.wrap(self._data.respacing(resolution, smooth_radius))
+        return Path.wrap(self._ptr.respacing(resolution, smooth_radius))
     def densify(self, TFloat resolution):
-        return Path.wrap(self._data.densify(resolution))
-    def smooth(self, TFloat resolution, TFloat smooth_radius=0):
-        return Path.wrap(self._data.smooth(resolution, smooth_radius))
+        return Path.wrap(self._ptr.densify(resolution))
+
+cdef class Trajectory:
+    def __cinit__(self, points, timestamps=None, bint _noinit=False):
+        cdef vector[cPoint] cpoints
+        cdef vector[TFloat] tstamps
+
+        if type(self) is Trajectory:
+            if _noinit:
+                self._ptr = NULL
+            elif isinstance(points, Path):
+                if not timestamps:
+                    raise ValueError("Timestamps are required")
+                tstamps = timestamps
+                self._ptr = new cTrajectory(deref((<Path>points)._ptr), tstamps)
+            elif points:
+                cpoints = vector[cPoint](len(points))
+                for i, p in enumerate(points):
+                    if isinstance(p, Point):
+                        cpoints[i] = (<Point>p)._data
+                    else:
+                        cpoints[i] = cPoint(p[0], p[1])
+                if not isinstance(points[0], Point) and len(points[0]) == 3:
+                    tstamps = vector[TFloat](len(points))
+                    for i, p in enumerate(points):
+                        tstamps[i] = p[2]
+                if timestamps is not None:
+                    tstamps = timestamps
+                if tstamps.size() == 0:
+                    raise ValueError("Timestamps are required")
+                self._ptr = new cTrajectory(cpoints.begin(), cpoints.end(),
+                    tstamps.begin(), tstamps.end())
+            else:
+                self._ptr = new cTrajectory()
+
+    def __dealloc__(self):
+        # only free the pointer at base class level
+        if type(self) is Path:
+            del self._ptr
+
+    @staticmethod
+    cdef Trajectory wrap(const cTrajectory &value):
+        cdef Trajectory p = Trajectory(None, _noinit=True)
+        p._ptr = new cTrajectory(value)
+        return p

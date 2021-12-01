@@ -47,9 +47,11 @@ struct PathPosition
     
     /// Convert the position to the distance to the beginning
     TFloat to_s(const Path &path);
+    TFloat to_s(const HeteroPath &path);
 
     /// Convert the distance to the beginning to s
     static PathPosition from_s(const Path &path, TFloat s);
+    static PathPosition from_s(const HeteroPath &path, TFloat s);
     static std::vector<PathPosition> from_s(const Path &path, const std::vector<TFloat> &s_list);
 
     /// Convert the position to the distance to the timestamp
@@ -64,7 +66,6 @@ class Path
 protected:
     LineString _line; // the geometry of the line string
     std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line. First value is always zero
-    // TODO: remove the leading zero in _distance
 
     /// Update _distance values
     void update_distance();
@@ -114,7 +115,6 @@ public:
     {
         return tangent_at(PathPosition::from_s(*this, s));
     }
-    // TODO: let tangent_at also supports smooth_radius, this should be only applicable to tangent_at
     TFloat tangent_at(const PathPosition &pos) const;
 
     /// Get the value interpolated by the distance from the beginning
@@ -153,6 +153,7 @@ protected:
     std::vector<TFloat> _timestamps; // the timestamp over each point
 
 public:
+    friend class PathPosition;
     friend class QuinticPolyTrajectory;
 
     Trajectory() {}
@@ -162,14 +163,14 @@ public:
     Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end)
         : Path(begin, end), _timestamps(t_begin, t_end) { update_distance(); }
 
-    const std::vector<TFloat> timestamps() const { return _timestamps; }
+    const std::vector<TFloat>& timestamps() const { return _timestamps; }
 
     /// Get the point indicated by the time
     Point point_at(TFloat t) const;
     TFloat tangent_at(TFloat t) const;
 
     /// Return the trajectory represented by points with equal time intervals
-    Trajectory reperiodize(TFloat resolution) const;
+    Trajectory reperiodize(TFloat interval) const;
 };
 
 
@@ -195,7 +196,8 @@ public:
     Point point_at(TFloat t) const;
     TFloat tangent_at(TFloat t) const;
 
-    Trajectory rasterize(TFloat t_resolution) const;
+    Trajectory rasterize(TFloat s) const;
+    Trajectory periodize(TFloat t) const;
 };
 
 // TODO: spline interpolated paths are also parametric paths
@@ -211,8 +213,7 @@ enum class SegmentType
     CubicBezier, // param: x1, y1, x2, y2 of the two control points
 
     // For polynomials, the latent parameter range need to be normalized to [0, 1]
-    QuarticPoly, // params: polynomial coeffs
-    QuinticPoly // params: polynomial coeffs
+    Polynomial, // params: polynomial coeffs (high to low)
 };
 
 struct HeteroSegment
@@ -232,6 +233,7 @@ protected:
 
 public:
     HeteroPath() {}
+    HeteroPath(const Path& path);
 
     friend class Path;
 
@@ -239,6 +241,9 @@ public:
     Path rasterize(TFloat resolution);
     /// Convert to Path by only rasterizing curves (excl. line segment)
     Path rasterize_curve(TFloat resolution);
+
+    Path respacing(TFloat resolution) const;
+    HeteroPath densify(TFloat resolution) const;
 };
 
 // ==================================== frenet paths ====================================
@@ -250,22 +255,19 @@ namespace frenet
     Point from_cartesian(const Path &ref, const Point &point);
     Point to_cartesian(const Path &ref, const Point &point);
 
-    std::pair<Point, Vector2> from_cartesian(const Path &ref, const Point &point, const Vector2& velocity);
-    std::pair<Point, Vector2> to_cartesian(const Path &ref, const Point &point, const Vector2& velocity);
-
     // TODO: add conversion for dynamic states from/to frenet
     // REF: https://blog.csdn.net/davidhopper/article/details/79162385#t6
 
     Path from_cartesian(const Path &ref, const Path &path);
     Path to_cartesian(const Path &ref, const Path &path);
 
-    inline Trajectory from_cartesian(const Path &ref, const Trajectory &path)
+    inline Trajectory from_cartesian(const Path &ref, const Trajectory &traj)
     {
-        return Trajectory(from_cartesian(ref, path), path.timestamps());
+        return Trajectory(from_cartesian(ref, traj), traj.timestamps());
     }
-    inline Trajectory to_cartesian(const Path &ref, const Trajectory &path)
+    inline Trajectory to_cartesian(const Path &ref, const Trajectory &traj)
     {
-        return Trajectory(to_cartesian(ref, path), path.timestamps());
+        return Trajectory(to_cartesian(ref, traj), traj.timestamps());
     }
 }
 
