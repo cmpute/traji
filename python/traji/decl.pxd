@@ -5,6 +5,36 @@ from libcpp.utility cimport pair
 ctypedef float TFloat
 
 cdef extern from "traji.hpp" namespace "traji":
+    """
+namespace traji {
+    Vector6 make_vec6(TFloat v0, TFloat v1, TFloat v2,
+                      TFloat v3, TFloat v4, TFloat v5) {
+        Vector6 vec; vec << v0, v1, v2, v3, v4, v5; return vec;
+    }
+}
+    """
+
+    cdef cppclass Vector3:
+        Vector3() except +
+        Vector3(TFloat*) except + 
+        Vector3(TFloat, TFloat, TFloat) except + 
+        float *data()
+        float& at "operator()"(size_t index)
+        @staticmethod
+        Vector3 Zero()
+
+    cdef cppclass Vector6:
+        Vector6() except +
+        Vector6(TFloat*) except + 
+        Vector6(TFloat, TFloat, TFloat) except + 
+        float *data()
+        float& at "operator()"(size_t index)
+        @staticmethod
+        Vector6 Zero()
+
+    Vector6 make_vec6(TFloat,TFloat,TFloat,TFloat,TFloat,TFloat)
+
+cdef extern from "traji.hpp" namespace "traji":
     cdef cppclass Point:
         Point ()
         Point (TFloat x, TFloat y)
@@ -80,11 +110,15 @@ cdef extern from "traji.hpp" namespace "traji":
         Point point_at(TFloat t)
 
     cdef cppclass QuinticPolyTrajectory:
+        QuinticPolyTrajectory(TFloat T, const Vector6 &x_coeffs, const Vector6 &y_coeffs)
+        QuinticPolyTrajectory(TFloat T, const Vector3 &x0, const Vector3 &xT,
+            const Vector3 &y0, const Vector3 &yT)
+
         Point point_at(TFloat t)
         TFloat tangent_at(TFloat t)
 
-        Trajectory rasterize(TFloat s)
-        Trajectory periodize(TFloat t)
+        Trajectory rasterize(TFloat resolution)
+        Trajectory periodize(TFloat interval)
 
     cdef cppclass HeteroPath:
         HeteroPath()

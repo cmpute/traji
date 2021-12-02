@@ -4,7 +4,7 @@ from libcpp.utility cimport pair
 from cython.operator cimport dereference as deref
 from cython.operator cimport preincrement as preinc
 
-from traji.decl cimport to_string, TFloat
+from traji.decl cimport to_string, TFloat, Vector3, Vector6, make_vec6
 
 cdef class Point:
     def __init__(self, x, y=None, bint _noinit=False): # accept Point(x, y) or Point([x, y])
@@ -14,7 +14,7 @@ cdef class Point:
             elif isinstance(x, (tuple, list)):
                 self._data = cPoint(x[0], x[1])
             else:
-                raise ValueError("Unrecognized input!")
+                raise ValueError("Unrecognized input!") 
 
     @staticmethod
     cdef Point wrap(const cPoint &value):
@@ -250,3 +250,32 @@ cdef class Trajectory:
         cdef Trajectory p = Trajectory(None, _noinit=True)
         p._ptr = new cTrajectory(value)
         return p
+
+cdef class QuinticPolyTrajectory:
+    def __cinit__(self, TFloat T, x0=None, xT=None, y0=None, yT=None, x_coeffs=None, y_coeffs=None):
+        cdef Vector6 cx_coeffs, cy_coeffs
+        cdef Vector3 cx0, cxT, cy0, cyT
+
+        if not (x_coeffs is None) and not (y_coeffs is None):
+            assert len(x_coeffs) >= 6 and len(y_coeffs) >= 6
+            cx_coeffs = make_vec6(x_coeffs[0], x_coeffs[1], x_coeffs[2], x_coeffs[3], x_coeffs[4], x_coeffs[5])
+            cy_coeffs = make_vec6(y_coeffs[0], y_coeffs[1], y_coeffs[2], y_coeffs[3], y_coeffs[4], y_coeffs[5])
+            self._ptr = new cQuinticPolyTrajectory(T, cx_coeffs, cy_coeffs)
+        elif not (x0 is None) and (xT is None):
+            assert len(x0) >= 6 and len(xT) >= 6 and len(y0) >= 6 and len(yT) >= 6
+            cx0 = Vector3(x0[0], x0[1], x0[2])
+            cxT = Vector3(xT[0], xT[1], xT[2])
+            cy0 = Vector3(y0[0], y0[1], y0[2])
+            cy0 = Vector3(y0[0], y0[1], y0[2])
+            self._ptr = new cQuinticPolyTrajectory(T, cx0, cxT, cy0, cyT)
+        else:
+            raise ValueError("No input is given for the QuinticPolyTrajectory")
+
+    def __dealloc__(self):
+        del self._ptr
+
+    def point_at(self, TFloat t):
+        return Point.wrap(self._ptr.point_at(t))
+
+    def periodize(self, TFloat interval):
+        return Trajectory.wrap(self._ptr.periodize(interval))

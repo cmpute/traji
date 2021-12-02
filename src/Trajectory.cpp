@@ -20,8 +20,8 @@ namespace traji
     }
 
     QuinticPolyTrajectory::QuinticPolyTrajectory(
-        const Vector3 &x0, const Vector3 &xT,
-        const Vector3 &y0, const Vector3 &yT, TFloat T
+        TFloat T, const Vector3 &x0, const Vector3 &xT,
+        const Vector3 &y0, const Vector3 &yT
     ) : _x_coeffs(), _y_coeffs(), _T(T)
     {
         assert (T > 0);
@@ -57,9 +57,9 @@ namespace traji
         return Point(x, y);
     }
 
-    Trajectory QuinticPolyTrajectory::rasterize(TFloat t_resolution) const
+    Trajectory QuinticPolyTrajectory::periodize(TFloat interval) const
     {
-        auto t = VectorX::LinSpaced((size_t)ceil(_T / t_resolution), 0, _T).array();
+        auto t = VectorX::LinSpaced((size_t)ceil(_T / interval), 0, _T).array();
          
         ArrayX x(t.rows()), y(t.rows());
         x.setConstant(_x_coeffs(0));

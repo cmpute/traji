@@ -1,6 +1,7 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
+set(CMAKE_CXX_STANDARD 14)
 find_dependency(Boost REQUIRED)
 find_dependency(Eigen3 3.3 REQUIRED)
 

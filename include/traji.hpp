@@ -182,22 +182,22 @@ protected:
     Vector6 _x_coeffs, _y_coeffs; // high-order to low-order
     TFloat _T; // the trajectory starts at t=0 and ends at t=T
 
-    QuinticPolyTrajectory(const Vector6 &x_coeffs, const Vector6 &y_coeffs, TFloat T)
+public:
+    QuinticPolyTrajectory(TFloat T, const Vector6 &x_coeffs, const Vector6 &y_coeffs)
         : _x_coeffs(x_coeffs), _y_coeffs(y_coeffs), _T(T) {}
 
     /// Solve optimal trajectory based on x and y states (including 1st and 2nd state derivatives)
-    QuinticPolyTrajectory(const Vector3 &x0, const Vector3 &xT,
-                                const Vector3 &y0, const Vector3 &yT, TFloat T);
+    QuinticPolyTrajectory(TFloat T, const Vector3 &x0, const Vector3 &xT,
+                          const Vector3 &y0, const Vector3 &yT);
 
-public:
     const Vector6& x_coeffs() const { return _x_coeffs; }
     const Vector6& y_coeffs() const { return _y_coeffs; }
 
     Point point_at(TFloat t) const;
     TFloat tangent_at(TFloat t) const;
 
-    Trajectory rasterize(TFloat s) const;
-    Trajectory periodize(TFloat t) const;
+    Trajectory rasterize(TFloat resolution) const;
+    Trajectory periodize(TFloat interval) const;
 };
 
 // TODO: spline interpolated paths are also parametric paths
