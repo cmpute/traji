@@ -391,7 +391,7 @@ namespace traji
         return result;
     }
 
-    HeteroPath Path::smooth(TFloat smooth_radius) const
+    HeteroPath Path::smooth(TFloat smooth_radius, SegmentType segtype) const
     {
         HeteroPath result;
         if (_line.size() == 0)
@@ -420,6 +420,7 @@ namespace traji
         });
         result._distance.push_back(seglen.front() - feas_radius.front());
 
+        // loop over the intermediate segments
         for (size_t i = 0; i < seglen.size() - 1; i++)
         {
             // add i-th segment
@@ -439,21 +440,39 @@ namespace traji
             }
 
             // add i-th curve
-            auto arc_params = arc::solve_smooth(
-                _line[i], _line[i+1], _line[i+2],
-                seglen[i], seglen[i+1],
-                feas_radius[i]);
-            auto arc_len = abs(arc_params.angle * arc_params.radius);
-
             auto new_point = segment::interpolate(
                 _line[i+1], _line[i+2],
                 feas_radius[i] / seglen[i+1]
             );
-            result._segments.emplace_back(HeteroSegment {
-                SegmentType::Arc, last_point, new_point,
-                std::vector<TFloat> {arc_params.center.get<0>(), arc_params.center.get<1>()}
-            });
-            result._distance.push_back(result._distance.back() + arc_len);
+            switch (segtype)
+            {
+                case SegmentType::Line:
+                {
+                    result._segments.emplace_back(HeteroSegment {
+                        SegmentType::Line, last_point, new_point,
+                        std::vector<TFloat> {}
+                    });
+                    result._distance.push_back(distance(last_point, new_point));
+                    break;
+                }
+                case SegmentType::Arc:
+                {
+                    auto arc_params = arc::solve_smooth(
+                        _line[i], _line[i+1], _line[i+2],
+                        seglen[i], seglen[i+1],
+                        feas_radius[i]);
+                    auto arc_len = abs(arc_params.angle * arc_params.radius);
+
+                    result._segments.emplace_back(HeteroSegment {
+                        SegmentType::Arc, last_point, new_point,
+                        std::vector<TFloat> {arc_params.center.get<0>(), arc_params.center.get<1>()}
+                    });
+                    result._distance.push_back(result._distance.back() + arc_len);
+                    break;
+                }
+                default:
+                    throw std::runtime_error("Unsupported segment type!");
+            }
             last_point = new_point;
         }
 

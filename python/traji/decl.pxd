@@ -35,6 +35,11 @@ namespace traji {
     Vector6 make_vec6(TFloat,TFloat,TFloat,TFloat,TFloat,TFloat)
 
 cdef extern from "traji.hpp" namespace "traji":
+    cdef cppclass SegmentType:
+        pass
+    cdef SegmentType SegmentType_Line "traji::SegmentType::Line"
+    cdef SegmentType SegmentType_Arc "traji::SegmentType::Arc"
+
     cdef cppclass Point:
         Point ()
         Point (TFloat x, TFloat y)
@@ -95,7 +100,7 @@ cdef extern from "traji.hpp" namespace "traji":
 
         Path respacing(TFloat resolution, TFloat smooth_radius)
         Path densify(TFloat resolution)
-        HeteroPath smooth(TFloat smooth_radius)
+        HeteroPath smooth(TFloat smooth_radius, SegmentType segtype)
         Path resample(const vector[TFloat] &s_list)
 
     cdef cppclass Trajectory(Path):
@@ -126,6 +131,7 @@ cdef extern from "traji.hpp" namespace "traji":
 
     cdef cppclass HeteroPath:
         HeteroPath()
+        HeteroPath(const HeteroPath&)
 
 cdef extern from "traji.hpp" namespace "traji::frenet":
     Point from_cartesian(const Path &ref, const Point &point)

@@ -4,7 +4,9 @@ from libcpp.utility cimport pair
 from cython.operator cimport dereference as deref
 from cython.operator cimport preincrement as preinc
 
-from traji.decl cimport to_string, TFloat, Vector3, Vector6, make_vec6
+from traji.decl cimport (to_string, TFloat, Vector3, Vector6,
+    make_vec6, SegmentType, SegmentType_Arc, SegmentType_Line,
+    from_cartesian, to_cartesian)
 
 cdef class Point:
     def __init__(self, x, y=None, bint _noinit=False): # accept Point(x, y) or Point([x, y])
@@ -210,6 +212,18 @@ cdef class Path:
         return Path.wrap(self._ptr.respacing(resolution, smooth_radius))
     def densify(self, TFloat resolution):
         return Path.wrap(self._ptr.densify(resolution))
+    def smooth(self, TFloat smooth_radius, str segtype = "arc"):
+        cdef SegmentType ctype
+
+        segtype = segtype.lower()
+        if segtype == 'line':
+            ctype = SegmentType_Line
+        elif segtype == 'arc':
+            ctype = SegmentType_Arc
+        else:
+            raise ValueError("The valid segment types are {line, arc}")
+
+        return HeteroPath.wrap(self._ptr.smooth(smooth_radius, ctype))
 
 cdef class Trajectory(Path):
     def __cinit__(self, points, timestamps=None, bint _noinit=False):
@@ -316,3 +330,37 @@ cdef class QuinticPolyTrajectory:
 
     def periodize(self, TFloat interval):
         return Trajectory.wrap(self._ptr.periodize(interval))
+
+cdef class HeteroPath:
+    def __cinit__(self, bint _noinit = False):
+        if not _noinit:
+            self._ptr = new cHeteroPath()
+
+    def __dealloc__(self):
+        del self._ptr
+
+    @staticmethod
+    cdef HeteroPath wrap(const cHeteroPath &value):
+        cdef HeteroPath p = HeteroPath(_noinit=True)
+        p._ptr = new cHeteroPath(value)
+        return p
+
+def frenet_from_cartesian(Path ref, target):
+    if isinstance(target, Point):
+        return Point.wrap(from_cartesian(deref(ref._ptr), (<Point>target)._data))
+    elif isinstance(target, Trajectory):
+        return Trajectory.wrap(from_cartesian(deref(ref._ptr), deref((<Trajectory>target).ptr())))
+    elif isinstance(target, Path):
+        return Path.wrap(from_cartesian(deref(ref._ptr), deref((<Path>target)._ptr)))
+    else:
+        raise ValueError("Invalid target type!")
+
+def frenet_to_cartesian(Path ref, target):
+    if isinstance(target, Point):
+        return Point.wrap(to_cartesian(deref(ref._ptr), (<Point>target)._data))
+    elif isinstance(target, Trajectory):
+        return Trajectory.wrap(to_cartesian(deref(ref._ptr), deref((<Trajectory>target).ptr())))
+    elif isinstance(target, Path):
+        return Path.wrap(to_cartesian(deref(ref._ptr), deref((<Path>target)._ptr)))
+    else:
+        raise ValueError("Invalid target type!")

@@ -30,8 +30,20 @@ constexpr TFloat pi2 = M_PI_2;
 // forward declaration
 class Path;
 class Trajectory;
+class HeteroSegment;
 class HeteroPath;
 class QuinticPolyTrajectory;
+
+enum class SegmentType
+{
+    Line, // no params
+    Arc, // param: x, y of the arc center 
+    QuadraticBezier, // param: x, y of the control point
+    CubicBezier, // param: x1, y1, x2, y2 of the two control points
+
+    // For polynomials, the latent parameter range need to be normalized to [0, 1]
+    Polynomial, // params: polynomial coeffs (high to low)
+};
 
 // ==================================== Non-parametric paths ====================================
 
@@ -61,6 +73,7 @@ struct PathPosition
 };
 
 /// (immutable) non-parametric linestring
+// TODO: implement move semantics
 class Path
 {
 protected:
@@ -139,7 +152,7 @@ public:
 
     /// Return the path with rounded corners. This method doesn't change the density of
     /// the points on the line segments
-    HeteroPath smooth(TFloat smooth_radius) const; // XXX: add param to select smooth curve type
+    HeteroPath smooth(TFloat smooth_radius, SegmentType segtype = SegmentType::Arc) const;
 
     /// Return a path represented by a list of distance to start. 
     /// The best performance is achieved when s_list is sorted ascendingly.
@@ -204,18 +217,6 @@ public:
 // TODO: spline interpolated paths are also parametric paths
 
 // ==================================== Hybrid paths ====================================
-
-// this could be the better implementation for rounded corner
-enum class SegmentType
-{
-    Line, // no params
-    Arc, // param: x, y of the arc center 
-    QuadraticBezier, // param: x, y of the control point
-    CubicBezier, // param: x1, y1, x2, y2 of the two control points
-
-    // For polynomials, the latent parameter range need to be normalized to [0, 1]
-    Polynomial, // params: polynomial coeffs (high to low)
-};
 
 struct HeteroSegment
 {

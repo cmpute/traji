@@ -1,6 +1,6 @@
 from traji.decl cimport Path as cPath, Point as cPoint, \
     PathPosition as cPathPosition, Trajectory as cTrajectory, \
-    QuinticPolyTrajectory as cQuinticPolyTrajectory
+    QuinticPolyTrajectory as cQuinticPolyTrajectory, HeteroPath as cHeteroPath
 
 cdef class Point:
     cdef cPoint _data
@@ -24,3 +24,8 @@ cdef class Trajectory(Path):
 
 cdef class QuinticPolyTrajectory:
     cdef cQuinticPolyTrajectory* _ptr
+
+cdef class HeteroPath:
+    cdef cHeteroPath* _ptr
+    @staticmethod
+    cdef HeteroPath wrap(const cHeteroPath &value)
