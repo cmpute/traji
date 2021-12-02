@@ -192,6 +192,7 @@ public:
 
     const Vector6& x_coeffs() const { return _x_coeffs; }
     const Vector6& y_coeffs() const { return _y_coeffs; }
+    TFloat T() const { return _T; }
 
     Point point_at(TFloat t) const;
     TFloat tangent_at(TFloat t) const;
@@ -309,6 +310,8 @@ namespace std
 std::string to_string(const traji::Point &value);
 std::string to_string(const traji::Path &value);
 std::string to_string(const traji::PathPosition &value);
+std::string to_string(const traji::Trajectory &value);
+std::string to_string(const traji::QuinticPolyTrajectory &value);
 
 }
 

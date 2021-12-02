@@ -114,6 +114,10 @@ cdef extern from "traji.hpp" namespace "traji":
         QuinticPolyTrajectory(TFloat T, const Vector3 &x0, const Vector3 &xT,
             const Vector3 &y0, const Vector3 &yT)
 
+        const Vector6& x_coeffs()
+        const Vector6& y_coeffs()
+        TFloat T()
+
         Point point_at(TFloat t)
         TFloat tangent_at(TFloat t)
 
@@ -137,3 +141,5 @@ cdef extern from "traji.hpp" namespace "std":
     string to_string(const Point &value)
     string to_string(const PathPosition &value)
     string to_string(const Path &value)
+    string to_string(const Trajectory &value)
+    string to_string(const QuinticPolyTrajectory &value)

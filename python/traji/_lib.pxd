@@ -17,8 +17,8 @@ cdef class Path:
     @staticmethod
     cdef Path wrap(const cPath &value)
 
-cdef class Trajectory:
-    cdef cTrajectory* _ptr
+cdef class Trajectory(Path):
+    cdef cTrajectory* ptr(self)
     @staticmethod
     cdef Trajectory wrap(const cTrajectory &value)
 

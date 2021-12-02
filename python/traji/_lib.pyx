@@ -183,6 +183,10 @@ cdef class Path:
         free(buffer.shape)
         free(buffer.strides)
 
+    def array(self):
+        import numpy as np
+        return np.asarray(self)
+
     def point_from(self, TFloat s):
         return Point.wrap(self._ptr.point_from(s))
     def point_at(self, PathPosition pos):
@@ -207,7 +211,7 @@ cdef class Path:
     def densify(self, TFloat resolution):
         return Path.wrap(self._ptr.densify(resolution))
 
-cdef class Trajectory:
+cdef class Trajectory(Path):
     def __cinit__(self, points, timestamps=None, bint _noinit=False):
         cdef vector[cPoint] cpoints
         cdef vector[TFloat] tstamps
@@ -245,11 +249,30 @@ cdef class Trajectory:
         if type(self) is Path:
             del self._ptr
 
+    cdef cTrajectory* ptr(self):
+        return <cTrajectory*>(self._ptr)
+
     @staticmethod
     cdef Trajectory wrap(const cTrajectory &value):
         cdef Trajectory p = Trajectory(None, _noinit=True)
         p._ptr = new cTrajectory(value)
         return p
+
+    def __str__(self):
+        return to_string(deref(self.ptr())).decode()
+    def __repr__(self):
+        return "<Trajectory with %d points>" % self.ptr().size()
+
+    property timestamps:
+        def __get__(self): return self.ptr().timestamps()
+
+    def array(self):
+        import numpy as np
+        points = super().array()
+        ret = np.empty((len(self), 3), dtype=points.dtype)
+        ret[:, :2] = points
+        ret[:, 2] = self.timestamps
+        return ret
 
 cdef class QuinticPolyTrajectory:
     def __cinit__(self, TFloat T, x0=None, xT=None, y0=None, yT=None, x_coeffs=None, y_coeffs=None):
@@ -261,8 +284,8 @@ cdef class QuinticPolyTrajectory:
             cx_coeffs = make_vec6(x_coeffs[0], x_coeffs[1], x_coeffs[2], x_coeffs[3], x_coeffs[4], x_coeffs[5])
             cy_coeffs = make_vec6(y_coeffs[0], y_coeffs[1], y_coeffs[2], y_coeffs[3], y_coeffs[4], y_coeffs[5])
             self._ptr = new cQuinticPolyTrajectory(T, cx_coeffs, cy_coeffs)
-        elif not (x0 is None) and (xT is None):
-            assert len(x0) >= 6 and len(xT) >= 6 and len(y0) >= 6 and len(yT) >= 6
+        elif not (x0 is None) and not (xT is None):
+            assert len(x0) >= 3 and len(xT) >= 3 and len(y0) >= 3 and len(yT) >= 3
             cx0 = Vector3(x0[0], x0[1], x0[2])
             cxT = Vector3(xT[0], xT[1], xT[2])
             cy0 = Vector3(y0[0], y0[1], y0[2])
@@ -273,6 +296,20 @@ cdef class QuinticPolyTrajectory:
 
     def __dealloc__(self):
         del self._ptr
+
+    def __str__(self):
+        return to_string(deref(self._ptr)).decode()
+    def __repr__(self):
+        return "<QuinticPolyTrajectory with T=%.4f>" % (self._ptr.T())
+
+    property T:
+        def __get__(self): return self._ptr.T()
+    property x_coeffs:
+        def __get__(self):
+            return [self._ptr.x_coeffs().at(i) for i in range(6)]
+    property y_coeffs:
+        def __get__(self):
+            return [self._ptr.y_coeffs().at(i) for i in range(6)]
 
     def point_at(self, TFloat t):
         return Point.wrap(self._ptr.point_at(t))

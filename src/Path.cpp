@@ -532,7 +532,7 @@ namespace std
     string to_string(const traji::PathPosition &pos)
     {
         stringstream ss;
-        ss << "(component " << pos.component << ", segment " << pos.segment << ", fraction" << pos.fraction << ')';
+        ss << "(component " << pos.component << ", segment " << pos.segment << ", fraction " << pos.fraction << ')';
         return ss.str();
     }
 }

@@ -1,4 +1,5 @@
 #include <cmath>
+#include <Eigen/Dense>
 #include "traji.hpp"
 
 namespace traji
@@ -59,7 +60,7 @@ namespace traji
 
     Trajectory QuinticPolyTrajectory::periodize(TFloat interval) const
     {
-        auto t = VectorX::LinSpaced((size_t)ceil(_T / interval), 0, _T).array();
+        auto t = VectorX::LinSpaced((size_t)ceil(_T / interval) + 1, 0, _T).array();
          
         ArrayX x(t.rows()), y(t.rows());
         x.setConstant(_x_coeffs(0));
@@ -82,3 +83,32 @@ namespace traji
         return result;
     }
 }
+
+namespace std
+{
+    std::string to_string(const traji::Trajectory &value)
+    {
+        if (value.size() == 0)
+            return string("[]");
+
+        stringstream ss;
+        ss << '[' << to_string(value[0]) << " @ " << value.timestamps()[0];
+        for (size_t i = 1; i < value.size(); i++)
+            ss << ", " << to_string(value[i]) << " @ " << value.timestamps()[i];
+        ss << ']';
+        return ss.str();
+    }
+
+    std::string to_string(const traji::QuinticPolyTrajectory &value)
+    {
+        stringstream ss;
+        ss << "(T=" << value.T() << ", x_coeffs [" << value.x_coeffs()(0);
+        for (size_t i = 1; i < 6; i++)
+            ss << ", " << value.x_coeffs()(i);
+        ss << "], y_coeffs [" << value.y_coeffs()(0);
+        for (size_t i = 1; i < 6; i++)
+            ss << ", " << value.y_coeffs()(i);
+        ss << "])";
+        return ss.str();
+    }
+} // namespace std
