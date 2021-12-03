@@ -44,7 +44,7 @@ def test_quintpoly():
     assert len(traj.y_coeffs) == 6
 
     traj = traj.periodize(0.1)
-    arr = traj.array()
+    arr = traj.numpy()
     assert np.all(arr[:, 2] >= 0) and np.all(arr[:, 2] <= 5)
     assert len(traj) == len(arr)
     assert np.all(np.diff(arr[:, 2]) <= 0.1 + 1e-5)

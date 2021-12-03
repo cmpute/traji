@@ -4,6 +4,7 @@ from libcpp.utility cimport pair
 
 ctypedef float TFloat
 
+# Eigen vector related definitions
 cdef extern from "traji.hpp" namespace "traji":
     """
 namespace traji {
@@ -34,6 +35,7 @@ namespace traji {
 
     Vector6 make_vec6(TFloat,TFloat,TFloat,TFloat,TFloat,TFloat)
 
+# class definitions
 cdef extern from "traji.hpp" namespace "traji":
     cdef cppclass SegmentType:
         pass
@@ -133,6 +135,16 @@ cdef extern from "traji.hpp" namespace "traji":
         HeteroPath()
         HeteroPath(const HeteroPath&)
 
+# binary operations on the paths
+cdef extern from "traji.hpp" namespace "traji":
+    cdef TFloat distance(const Point& lhs, const Point &rhs)
+    cdef TFloat distance(const Path& lhs, const Point &rhs)
+    cdef PathPosition arg_distance(const Path &lhs, const Point &rhs)
+
+    cdef vector[Point] intersection(const Path& lhs, const Path &rhs)
+    cdef vector[pair[PathPosition, PathPosition]] arg_intersection(const Path& lhs, const Path& rhs)
+
+# frenet related definitions
 cdef extern from "traji.hpp" namespace "traji::frenet":
     Point from_cartesian(const Path &ref, const Point &point)
     Point to_cartesian(const Path &ref, const Point &point)
@@ -143,6 +155,7 @@ cdef extern from "traji.hpp" namespace "traji::frenet":
     Trajectory from_cartesian(const Path &ref, const Trajectory &traj)
     Trajectory to_cartesian(const Path &ref, const Trajectory &traj)
 
+# standard function definitions
 cdef extern from "traji.hpp" namespace "std":
     string to_string(const Point &value)
     string to_string(const PathPosition &value)

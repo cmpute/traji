@@ -67,7 +67,6 @@ struct PathPosition
     static std::vector<PathPosition> from_s(const Path &path, const std::vector<TFloat> &s_list);
 
     /// Convert the position to the distance to the timestamp
-    // TODO: implement
     TFloat to_t(const Trajectory &traj);
     static PathPosition from_t(const Trajectory &traj, TFloat t);
 };
@@ -276,7 +275,8 @@ namespace frenet
 // ==================================== binary functions ====================================
 
 inline TFloat distance(const Point &lhs, const Point &rhs) { return boost::geometry::distance(lhs, rhs); }
-TFloat distance(const Path &lhs, const Point &rhs);
+inline TFloat distance(const Path &lhs, const Point &rhs) { return lhs.project(rhs).first; }
+inline PathPosition arg_distance(const Path &lhs, const Point &rhs) { return lhs.project(rhs).second; }
 
 std::vector<Point> intersection(const Path &lhs, const Path &rhs);
 std::vector<std::pair<PathPosition, PathPosition>> arg_intersection(const Path &lhs, const Path &rhs);

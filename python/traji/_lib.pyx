@@ -6,7 +6,9 @@ from cython.operator cimport preincrement as preinc
 
 from traji.decl cimport (to_string, TFloat, Vector3, Vector6,
     make_vec6, SegmentType, SegmentType_Arc, SegmentType_Line,
-    from_cartesian, to_cartesian)
+    from_cartesian, to_cartesian,
+    distance as cdistance, arg_distance as carg_distance,
+    intersection as cintersection, arg_intersection as carg_intersection)
 
 cdef class Point:
     def __init__(self, x, y=None, bint _noinit=False): # accept Point(x, y) or Point([x, y])
@@ -83,6 +85,16 @@ cdef class PathPosition:
                 return [PathPosition.wrap(p) for p in p_list]
             else:
                 raise ValueError("Invalid s input!")
+        else:
+            raise ValueError("Unsupported path type!")
+
+    @classmethod
+    def from_t(cls, traj, t):
+        if isinstance(traj, Trajectory):
+            if isinstance(t, (int, float)):
+                return PathPosition.wrap(cPathPosition.from_t(deref((<Trajectory>traj).ptr()), <TFloat>t))
+            else:
+                raise ValueError("Invalid t input!")
         else:
             raise ValueError("Unsupported path type!")
 
@@ -185,9 +197,14 @@ cdef class Path:
         free(buffer.shape)
         free(buffer.strides)
 
-    def array(self):
+    def numpy(self):
         import numpy as np
         return np.asarray(self)
+
+    def shapely(self):
+        from shapely.geometry import LineString
+        plist = [(p.x(), p.y()) for p in self._ptr.data()]
+        return LineString(plist)
 
     def point_from(self, TFloat s):
         return Point.wrap(self._ptr.point_from(s))
@@ -280,9 +297,9 @@ cdef class Trajectory(Path):
     property timestamps:
         def __get__(self): return self.ptr().timestamps()
 
-    def array(self):
+    def numpy(self):
         import numpy as np
-        points = super().array()
+        points = super().numpy()
         ret = np.empty((len(self), 3), dtype=points.dtype)
         ret[:, :2] = points
         ret[:, 2] = self.timestamps
@@ -364,3 +381,37 @@ def frenet_to_cartesian(Path ref, target):
         return Path.wrap(to_cartesian(deref(ref._ptr), deref((<Path>target)._ptr)))
     else:
         raise ValueError("Invalid target type!")
+
+def distance(lhs, rhs):
+    if isinstance(lhs, Path):
+        if isinstance(rhs, Point):
+            return cdistance(deref((<Path>lhs)._ptr),  (<Point>rhs)._data)
+        else:
+            raise ValueError("Unsupported type")
+    elif isinstance(lhs, Point):
+        if isinstance(rhs, Point):
+            return cdistance((<Point>lhs)._data, (<Point>rhs)._data)
+        elif isinstance(rhs, Path):
+            return cdistance(deref((<Path>rhs)._ptr), (<Point>lhs)._data)
+        else:
+            raise ValueError("Unsupported type")
+    else:
+        raise ValueError("Unsupported type")
+
+def intersection(lhs, rhs):
+    cdef vector[cPoint] points_result
+    if isinstance(lhs, Path):
+        if isinstance(rhs, Path):
+            points_result = cintersection(deref((<Path>lhs)._ptr), deref((<Path>rhs)._ptr))
+            return [Point.wrap(p) for p in points_result]
+        else:
+            raise ValueError("Unsupported type")
+
+def arg_intersection(lhs, rhs):
+    cdef vector[pair[cPathPosition, cPathPosition]] points_result
+    if isinstance(lhs, Path):
+        if isinstance(rhs, Path):
+            points_result = carg_intersection(deref((<Path>lhs)._ptr), deref((<Path>rhs)._ptr))
+            return [(PathPosition.wrap(p.first), PathPosition.wrap(p.second)) for p in points_result]
+        else:
+            raise ValueError("Unsupported type")
