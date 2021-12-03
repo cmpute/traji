@@ -1,5 +1,6 @@
 import traji
 import numpy as np
+from shapely.geometry import Point as sPoint, LineString
 
 def test_project():
     path = traji.Path([(0, 0), (0, 1), (1, 1)])
@@ -32,25 +33,20 @@ def test_densify():
     densified = path.densify(0.3)
     assert np.all(np.array(densified.segment_lengths) < 0.3 + 1e-5)
 
-def test_quintpoly():
-    x0 = [0, 1, 0]
-    xT = [1, 0, 0]
-    y0 = [1, 0, 0]
-    yT = [0, 1, 0]
-    traj = traji.QuinticPolyTrajectory(5, x0, xT, y0, yT)
+def test_shapely_interop():
+    point = traji.Point([1, 2])
+    shapely_point = sPoint(point)
+    shapely_point = point.shapely()
+    point2 = traji.Point(shapely_point)
+    assert point == point2
 
-    assert traj.T == 5
-    assert len(traj.x_coeffs) == 6
-    assert len(traj.y_coeffs) == 6
-
-    traj = traj.periodize(0.1)
-    arr = traj.numpy()
-    assert np.all(arr[:, 2] >= 0) and np.all(arr[:, 2] <= 5)
-    assert len(traj) == len(arr)
-    assert np.all(np.diff(arr[:, 2]) <= 0.1 + 1e-5)
+    path = traji.Path([(0, 0), (1, 2), (2, 1)])
+    shapely_path = path.shapely()
+    path2 = traji.Path(shapely_path)
+    assert path == path2
 
 if __name__ == "__main__":
-    test_project()
-    test_respacing()
-    test_densify()
-    test_quintpoly()
+    # test_project()
+    # test_respacing()
+    # test_densify()
+    test_shapely_interop()

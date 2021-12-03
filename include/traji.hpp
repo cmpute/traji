@@ -208,6 +208,7 @@ public:
 
     Point point_at(TFloat t) const;
     TFloat tangent_at(TFloat t) const;
+    Vector2 velocity_at(TFloat t) const;
 
     Trajectory rasterize(TFloat resolution) const;
     Trajectory periodize(TFloat interval) const;
@@ -224,6 +225,9 @@ struct HeteroSegment
 
     /// Params for the segments, see SegmentType for details
     std::vector<TFloat> params;
+
+    Point point_at(TFloat fraction);
+    TFloat tangent_at(TFloat fraction);
 };
 
 class HeteroPath

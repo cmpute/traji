@@ -58,6 +58,23 @@ namespace traji
         return Point(x, y);
     }
 
+    Vector2 QuinticPolyTrajectory::velocity_at(TFloat t) const
+    {
+        TFloat x = 5 * _x_coeffs(0), y = 5 * _y_coeffs(0);
+        for (size_t i = 1; i < 5; i++)
+        {
+            x = x * t + (5-i) * _x_coeffs(i);
+            y = y * t + (5-i) * _y_coeffs(i);
+        }
+        return Vector2(x, y);
+    }
+
+    TFloat QuinticPolyTrajectory::tangent_at(TFloat t) const
+    {
+        auto vel = velocity_at(t);
+        return atan2(vel(1), vel(0));
+    }
+
     Trajectory QuinticPolyTrajectory::periodize(TFloat interval) const
     {
         auto t = VectorX::LinSpaced((size_t)ceil(_T / interval) + 1, 0, _T).array();

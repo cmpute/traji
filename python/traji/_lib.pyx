@@ -4,7 +4,7 @@ from libcpp.utility cimport pair
 from cython.operator cimport dereference as deref
 from cython.operator cimport preincrement as preinc
 
-from traji.decl cimport (to_string, TFloat, Vector3, Vector6,
+from traji.decl cimport (to_string, TFloat, Vector2, Vector3, Vector6,
     make_vec6, SegmentType, SegmentType_Arc, SegmentType_Line,
     from_cartesian, to_cartesian,
     distance as cdistance, arg_distance as carg_distance,
@@ -17,6 +17,8 @@ cdef class Point:
                 self._data = cPoint(x, y)
             elif isinstance(x, (tuple, list)):
                 self._data = cPoint(x[0], x[1])
+            elif hasattr(x, 'x') and hasattr(x, 'y'):
+                self._data = cPoint(x.x, x.y)
             else:
                 raise ValueError("Unrecognized input!") 
 
@@ -35,10 +37,17 @@ cdef class Point:
         return to_string(self._data).decode()
     def __repr__(self):
         return "<Point %s>" % to_string(self._data).decode()
+    def __len__(self):
+        return 2
     def __eq__(self, other):
         return isinstance(other, Point) and self._data == (<Point>other)._data
     def __ne__(self, other):
         return not (self == other)
+    def __iter__(self):
+        return iter((self._data.x(), self._data.y()))
+    def shapely(self):
+        from shapely.geometry import Point
+        return Point(self._data.x(), self._data.y())
 
 cdef class PathPosition:
     def __init__(self, size_t component=0, size_t segment=0, TFloat fraction=0, bint _noinit=False):
@@ -128,6 +137,9 @@ cdef class Path:
             if _noinit:
                 self._ptr = NULL
             elif points:
+                if hasattr(points, 'coords'): # support for shapely geometries
+                    points = points.coords
+
                 cpoints = vector[cPoint](len(points))
                 for i, p in enumerate(points):
                     if isinstance(p, Point):
@@ -155,7 +167,7 @@ cdef class Path:
     def __repr__(self):
         return "<Path with %d points>" % self._ptr.size()
     def __eq__(self, other):
-        return isinstance(other, Path) and self._ptr == (<Path>other)._ptr
+        return isinstance(other, Path) and deref(self._ptr) == deref((<Path>other)._ptr)
     def __ne__(self, other):
         return not (self == other)
     def __iter__(self):
@@ -344,6 +356,11 @@ cdef class QuinticPolyTrajectory:
 
     def point_at(self, TFloat t):
         return Point.wrap(self._ptr.point_at(t))
+    def tangent_at(self, TFloat t):
+        return self._ptr.tangent_at(t)
+    def velocity_at(self, TFloat t):
+        cdef Vector2 vel = self._ptr.velocity_at(t)
+        return vel.at(0), vel.at(1)
 
     def periodize(self, TFloat interval):
         return Trajectory.wrap(self._ptr.periodize(interval))

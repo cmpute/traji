@@ -14,10 +14,16 @@ namespace traji {
     }
 }
     """
+    cdef cppclass Vector2:
+        Vector2() except +
+        Vector2(TFloat, TFloat) except + 
+        float *data()
+        float& at "operator()"(size_t index)
+        @staticmethod
+        Vector2 Zero()
 
     cdef cppclass Vector3:
         Vector3() except +
-        Vector3(TFloat*) except + 
         Vector3(TFloat, TFloat, TFloat) except + 
         float *data()
         float& at "operator()"(size_t index)
@@ -26,7 +32,6 @@ namespace traji {
 
     cdef cppclass Vector6:
         Vector6() except +
-        Vector6(TFloat*) except + 
         Vector6(TFloat, TFloat, TFloat) except + 
         float *data()
         float& at "operator()"(size_t index)
@@ -127,6 +132,7 @@ cdef extern from "traji.hpp" namespace "traji":
 
         Point point_at(TFloat t)
         TFloat tangent_at(TFloat t)
+        Vector2 velocity_at(TFloat t)
 
         Trajectory rasterize(TFloat resolution)
         Trajectory periodize(TFloat interval)
