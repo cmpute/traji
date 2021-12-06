@@ -341,18 +341,31 @@ cdef class Trajectory(Path):
         else:
             raise ValueError("Unrecognized position input!")
 
-    def velocity_from(self, float s):
-        cdef Vector2 vel = self.ptr().velocity_from(s)
+    def velocity_from(self, float s, bint interpolate = False):
+        cdef Vector2 vel = self.ptr().velocity_from(s, interpolate)
         return vel.at(0), vel.at(1)
-    def velocity_at(self, pos):
+    def velocity_at(self, pos, bint interpolate = False):
         cdef Vector2 vel
         if isinstance(pos, PathPosition):
-            vel = self.ptr().velocity_at((<PathPosition>pos)._data)
+            vel = self.ptr().velocity_at((<PathPosition>pos)._data, interpolate)
         elif isinstance(pos, float):
-            vel = self.ptr().velocity_at(<TFloat>pos)
+            vel = self.ptr().velocity_at(<TFloat>pos, interpolate)
         else:
             raise ValueError("Unrecognized position input!")
         return vel.at(0), vel.at(1)
+
+    def acceleration_from(self, float s, bint interpolate = False):
+        cdef Vector2 acc = self.ptr().acceleration_from(s, interpolate)
+        return acc.at(0), acc.at(1)
+    def acceleration_at(self, pos, bint interpolate = False):
+        cdef Vector2 acc
+        if isinstance(pos, PathPosition):
+            acc = self.ptr().acceleration_at((<PathPosition>pos)._data, interpolate)
+        elif isinstance(pos, float):
+            acc = self.ptr().acceleration_at(<TFloat>pos, interpolate)
+        else:
+            raise ValueError("Unrecognized position input!")
+        return acc.at(0), acc.at(1)
 
 cdef class QuinticPolyTrajectory:
     def __cinit__(self, TFloat T, x0=None, xT=None, y0=None, yT=None, x_coeffs=None, y_coeffs=None):

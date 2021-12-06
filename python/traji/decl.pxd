@@ -1,3 +1,4 @@
+from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.utility cimport pair
@@ -121,9 +122,12 @@ cdef extern from "traji.hpp" namespace "traji":
 
         Point point_at(TFloat t)
         TFloat tangent_at(TFloat t)
-        Vector2 velocity_from(TFloat s)
-        Vector2 velocity_at(TFloat t)
-        Vector2 velocity_at(const PathPosition &t)
+        Vector2 velocity_from(TFloat s, bool interpolate)
+        Vector2 velocity_at(TFloat t, bool interpolate)
+        Vector2 velocity_at(const PathPosition &t, bool interpolate)
+        Vector2 acceleration_from(TFloat s, bool interpolate)
+        Vector2 acceleration_at(TFloat t, bool interpolate)
+        Vector2 acceleration_at(const PathPosition &t, bool interpolate)
 
     cdef cppclass QuinticPolyTrajectory:
         QuinticPolyTrajectory(TFloat T, const Vector6 &x_coeffs, const Vector6 &y_coeffs)

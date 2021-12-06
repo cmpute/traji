@@ -1,3 +1,4 @@
+#include <iostream>
 #include <cmath>
 #include <Eigen/Dense>
 #include "traji.hpp"
@@ -6,7 +7,6 @@ using namespace std;
 
 namespace traji
 {
-    // TODO: consider speed interpolation
     TFloat PathPosition::to_t(const Trajectory &traj)
     {
         return traj._timestamps[segment] + (traj._timestamps[segment+1] - traj._timestamps[segment]) * fraction;
@@ -25,27 +25,75 @@ namespace traji
         return result;
     }
 
-    // TODO: speed_at or velocity_at
-    // TODO: interpolate velocity between points
-    Vector2 Trajectory::velocity_at(const PathPosition &pos) const
+    Vector2 Trajectory::solve_velocity(size_t segment_idx) const
     {
-        TFloat direction = Path::tangent_at(pos);
-        TFloat speed = (_distance[pos.segment+1] - _distance[pos.segment]) /
-                (_timestamps[pos.segment+1] - _timestamps[pos.segment]);
-        return Vector2(speed * cos(direction), speed * sin(direction));
+        assert (segment_idx >= 0 && segment_idx <= _line.size() - 2);
+
+        TFloat dt = _timestamps[segment_idx+1] - _timestamps[segment_idx];
+        TFloat vx = (_line[segment_idx+1].get<0>() - _line[segment_idx].get<0>()) / dt;
+        TFloat vy = (_line[segment_idx+1].get<1>() - _line[segment_idx].get<1>()) / dt;
+        return Vector2(vx, vy);
     }
 
-    Vector2 Trajectory::acceleration_at(const PathPosition &pos) const
+    Vector2 Trajectory::velocity_at(const PathPosition &pos, bool interpolate) const
+    {
+        if (!interpolate ||
+            (pos.segment == 0 && pos.fraction < 0.5) ||
+            (pos.segment == _line.size() - 2 && pos.fraction >= 0.5))
+            return solve_velocity(pos.segment);
+        else
+        {
+            // linear interpolate based on fraction (position)
+            Vector2 vel1, vel2;
+            TFloat w1, w2;
+            if (pos.fraction < 0.5)
+            {
+                vel1 = solve_velocity(pos.segment - 1);
+                w1 = 0.5 + pos.fraction;
+                vel2 = solve_velocity(pos.segment);
+                w2 = 0.5 - pos.fraction;
+            }
+            else
+            {
+                vel1 = solve_velocity(pos.segment);
+                w1 = pos.fraction - 0.5;
+                vel2 = solve_velocity(pos.segment + 1);
+                w2 = 1.5 - pos.fraction;
+            }
+            return vel1.array() * w1 + vel2.array() * w2;
+        }
+    }
+
+    Vector2 Trajectory::solve_acceleration(size_t point_idx) const
+    {
+        assert (point_idx >= 1 && point_idx <= _line.size() - 2);
+
+        TFloat dt = (_timestamps[point_idx+1] - _timestamps[point_idx-1]) / 2;
+        Vector2 vel1 = solve_velocity(point_idx - 1);
+        Vector2 vel2 = solve_velocity(point_idx);
+        return (vel2.array() - vel1.array()) / dt;
+    }
+
+    Vector2 Trajectory::acceleration_at(const PathPosition &pos, bool interpolate) const
     {
         if (_line.size() <= 2) return Vector2(0, 0); // no acceleration for one segment
 
-        
-        // if (pos.segment == 0)
-        //     return 
-        // TFloat direction = Path::tangent_at(pos);
-        // TFloat speed = (_distance[pos.segment+1] - _distance[pos.segment]) /
-        //         (_timestamps[pos.segment+1] - _timestamps[pos.segment]);
-        // return Vector2(speed * cos(direction), speed * sin(direction));
+        if (pos.segment == 0)
+            return solve_acceleration(1);
+        else if (pos.segment == _line.size() - 2)
+            return solve_acceleration(pos.segment);
+        else if (interpolate)
+        {
+            return solve_acceleration(pos.segment).array() * pos.fraction +
+                   solve_acceleration(pos.segment+1).array() * (1 - pos.fraction);
+        }
+        else
+        {
+            if (pos.fraction < 0.5)
+                return solve_acceleration(pos.segment);
+            else
+                return solve_acceleration(pos.segment+1);
+        }
     }
 
     QuinticPolyTrajectory::QuinticPolyTrajectory(

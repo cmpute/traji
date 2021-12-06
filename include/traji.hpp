@@ -167,6 +167,10 @@ class Trajectory : public Path
 protected:
     std::vector<TFloat> _timestamps; // the timestamp over each point
 
+private:
+    Vector2 solve_velocity(size_t segment_idx) const;
+    Vector2 solve_acceleration(size_t point_idx) const;
+
 public:
     friend class PathPosition;
     friend class QuinticPolyTrajectory;
@@ -189,23 +193,23 @@ public:
     {
         return Path::tangent_at(PathPosition::from_t(*this, t));
     }
-    Vector2 velocity_at(const PathPosition &pos) const;
-    inline Vector2 velocity_from(TFloat s) const
+    Vector2 velocity_at(const PathPosition &pos, bool interpolate = false) const;
+    inline Vector2 velocity_from(TFloat s, bool interpolate = false) const
     {
-        return velocity_at(PathPosition::from_s(*this, s));
+        return velocity_at(PathPosition::from_s(*this, s), interpolate);
     }
-    inline Vector2 velocity_at(TFloat t) const
+    inline Vector2 velocity_at(TFloat t, bool interpolate = false) const
     {
-        return velocity_at(PathPosition::from_t(*this, t));
+        return velocity_at(PathPosition::from_t(*this, t), interpolate);
     }
-    Vector2 acceleration_at(const PathPosition &pos) const;
-    inline Vector2 acceleration_from(TFloat s) const
+    Vector2 acceleration_at(const PathPosition &pos, bool interpolate = false) const;
+    inline Vector2 acceleration_from(TFloat s, bool interpolate = false) const
     {
-        return acceleration_at(PathPosition::from_s(*this, s));
+        return acceleration_at(PathPosition::from_s(*this, s), interpolate);
     }
-    inline Vector2 acceleration_at(TFloat t) const
+    inline Vector2 acceleration_at(TFloat t, bool interpolate = false) const
     {
-        return acceleration_at(PathPosition::from_t(*this, t));
+        return acceleration_at(PathPosition::from_t(*this, t), interpolate);
     }
 
     /// Return the trajectory represented by points with equal time intervals

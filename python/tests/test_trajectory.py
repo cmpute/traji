@@ -33,5 +33,20 @@ def test_quintpoly():
         assert np.allclose(traj.acceleration_at(0), [x0[2], y0[2]])
         assert np.allclose(traj.acceleration_at(T), [xT[2], yT[2]], atol=1e-3, rtol=1e-3)
 
+def test_trajectory_interpolation():
+    x0 = [0, 1, 0]
+    xT = [1, 0, 0]
+    y0 = [1, 0, 0]
+    yT = [0, 1, 0]
+    traj = traji.QuinticPolyTrajectory(5, x0, xT, y0, yT)
+    traj = traj.periodize(0.02)
+
+    for s in np.linspace(-0.1,1.1,13) * traj.length:
+        print("==========")
+        print(traj.point_at(s))
+        print(traj.velocity_at(s))
+        print(traj.acceleration_at(s))
+
 if __name__ == "__main__":
-    test_quintpoly()
+    # test_quintpoly()
+    test_trajectory_interpolation()
