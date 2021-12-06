@@ -1,5 +1,7 @@
+from . import frenet
 from ._lib import Point, Path, PathPosition, Trajectory, QuinticPolyTrajectory
 
 __all__ = [
-    'Point', 'Path', 'PathPosition', 'Trajectory', 'QuinticPolyTrajectory'
+    'Point', 'Path', 'PathPosition', 'Trajectory', 'QuinticPolyTrajectory',
+    'frenet'
 ]

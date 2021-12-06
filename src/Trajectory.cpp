@@ -2,22 +2,50 @@
 #include <Eigen/Dense>
 #include "traji.hpp"
 
+using namespace std;
+
 namespace traji
 {
+    // TODO: consider speed interpolation
     TFloat PathPosition::to_t(const Trajectory &traj)
     {
-        traj._timestamps[segment] + (traj._timestamps[segment+1] - traj._timestamps[segment]) * fraction;
+        return traj._timestamps[segment] + (traj._timestamps[segment+1] - traj._timestamps[segment]) * fraction;
     }
     PathPosition PathPosition::from_t(const Trajectory &traj, TFloat t)
     {
-        auto segment_iter = lower_bound(traj._timestamps.begin(), traj._timestamps.end(), t);
+        auto segment_iter = upper_bound(traj._timestamps.begin(), traj._timestamps.end(), t);
         auto segment_idx = distance(traj._timestamps.begin(), segment_iter);
+        segment_idx = min((long)traj.size() - 2L, max(0L, segment_idx)); // clip the segment index
+
         auto t0 = traj._timestamps[segment_idx], t1 = traj._timestamps[segment_idx+1];
 
         PathPosition result;
         result.segment = segment_idx;
         result.fraction = (t - t0) / (t1 - t0);
         return result;
+    }
+
+    // TODO: speed_at or velocity_at
+    // TODO: interpolate velocity between points
+    Vector2 Trajectory::velocity_at(const PathPosition &pos) const
+    {
+        TFloat direction = Path::tangent_at(pos);
+        TFloat speed = (_distance[pos.segment+1] - _distance[pos.segment]) /
+                (_timestamps[pos.segment+1] - _timestamps[pos.segment]);
+        return Vector2(speed * cos(direction), speed * sin(direction));
+    }
+
+    Vector2 Trajectory::acceleration_at(const PathPosition &pos) const
+    {
+        if (_line.size() <= 2) return Vector2(0, 0); // no acceleration for one segment
+
+        
+        // if (pos.segment == 0)
+        //     return 
+        // TFloat direction = Path::tangent_at(pos);
+        // TFloat speed = (_distance[pos.segment+1] - _distance[pos.segment]) /
+        //         (_timestamps[pos.segment+1] - _timestamps[pos.segment]);
+        // return Vector2(speed * cos(direction), speed * sin(direction));
     }
 
     QuinticPolyTrajectory::QuinticPolyTrajectory(
@@ -69,6 +97,17 @@ namespace traji
         return Vector2(x, y);
     }
 
+    Vector2 QuinticPolyTrajectory::acceleration_at(TFloat t) const
+    {
+        TFloat x = 20 * _x_coeffs(0), y = 20 * _y_coeffs(0);
+        for (size_t i = 1; i < 4; i++)
+        {
+            x = x * t + (5-i) * (4-i) * _x_coeffs(i);
+            y = y * t + (5-i) * (4-i) * _y_coeffs(i);
+        }
+        return Vector2(x, y);
+    }
+
     TFloat QuinticPolyTrajectory::tangent_at(TFloat t) const
     {
         auto vel = velocity_at(t);
@@ -103,7 +142,7 @@ namespace traji
 
 namespace std
 {
-    std::string to_string(const traji::Trajectory &value)
+    string to_string(const traji::Trajectory &value)
     {
         if (value.size() == 0)
             return string("[]");
@@ -116,7 +155,7 @@ namespace std
         return ss.str();
     }
 
-    std::string to_string(const traji::QuinticPolyTrajectory &value)
+    string to_string(const traji::QuinticPolyTrajectory &value)
     {
         stringstream ss;
         ss << "(T=" << value.T() << ", x_coeffs [" << value.x_coeffs()(0);

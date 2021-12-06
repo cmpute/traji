@@ -77,7 +77,8 @@ class Path
 {
 protected:
     LineString _line; // the geometry of the line string
-    std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line. First value is always zero
+    std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line.
+                                   // first value is always zero. (TODO: support non-zero initial s?)
 
     /// Update _distance values
     void update_distance();
@@ -93,6 +94,7 @@ public:
     friend class PathPosition;
     friend class QuinticPolyTrajectory;
 
+    // TODO: remove points with zero distance?
     Path() {}
     template<typename Iterator>
     Path(Iterator begin, Iterator end) : _line(begin, end) { update_distance(); }
@@ -158,7 +160,8 @@ public:
     Path resample(const std::vector<TFloat> &s_list) const;
 };
 
-/// non-parametric linestring with time
+/// non-parametric linestring with time, assuming constant acceleration
+/// the values will still be interpolated based on position
 class Trajectory : public Path
 {
 protected:
@@ -178,10 +181,35 @@ public:
     const std::vector<TFloat>& timestamps() const { return _timestamps; }
 
     /// Get the point indicated by the time
-    Point point_at(TFloat t) const;
-    TFloat tangent_at(TFloat t) const;
+    inline Point point_at(TFloat t) const 
+    {
+        return Path::point_at(PathPosition::from_t(*this, t));
+    }
+    inline TFloat tangent_at(TFloat t) const
+    {
+        return Path::tangent_at(PathPosition::from_t(*this, t));
+    }
+    Vector2 velocity_at(const PathPosition &pos) const;
+    inline Vector2 velocity_from(TFloat s) const
+    {
+        return velocity_at(PathPosition::from_s(*this, s));
+    }
+    inline Vector2 velocity_at(TFloat t) const
+    {
+        return velocity_at(PathPosition::from_t(*this, t));
+    }
+    Vector2 acceleration_at(const PathPosition &pos) const;
+    inline Vector2 acceleration_from(TFloat s) const
+    {
+        return acceleration_at(PathPosition::from_s(*this, s));
+    }
+    inline Vector2 acceleration_at(TFloat t) const
+    {
+        return acceleration_at(PathPosition::from_t(*this, t));
+    }
 
     /// Return the trajectory represented by points with equal time intervals
+    // TODO: this should preserve the velocity
     Trajectory reperiodize(TFloat interval) const;
 };
 
@@ -209,6 +237,7 @@ public:
     Point point_at(TFloat t) const;
     TFloat tangent_at(TFloat t) const;
     Vector2 velocity_at(TFloat t) const;
+    Vector2 acceleration_at(TFloat t) const;
 
     Trajectory rasterize(TFloat resolution) const;
     Trajectory periodize(TFloat interval) const;
@@ -268,11 +297,11 @@ namespace frenet
 
     inline Trajectory from_cartesian(const Path &ref, const Trajectory &traj)
     {
-        return Trajectory(from_cartesian(ref, traj), traj.timestamps());
+        return Trajectory(from_cartesian(ref, (Path&)traj), traj.timestamps());
     }
     inline Trajectory to_cartesian(const Path &ref, const Trajectory &traj)
     {
-        return Trajectory(to_cartesian(ref, traj), traj.timestamps());
+        return Trajectory(to_cartesian(ref, (Path&)traj), traj.timestamps());
     }
 }
 

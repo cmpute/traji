@@ -123,8 +123,10 @@ namespace traji
 
     PathPosition PathPosition::from_s(const Path &path, TFloat s)
     {
-        auto segment_iter = lower_bound(path._distance.begin(), path._distance.end(), s);
-        auto segment_idx = distance(path._distance.begin(), segment_iter);
+        auto segment_iter = upper_bound(path._distance.begin(), path._distance.end(), s);
+        auto segment_idx = distance(path._distance.begin(), segment_iter) - 1;
+        segment_idx = min((long)path.size() - 2L, max(0L, segment_idx)); // clip the segment index
+
         auto s0 = path._distance[segment_idx], s1 = path._distance[segment_idx+1];
 
         PathPosition result;

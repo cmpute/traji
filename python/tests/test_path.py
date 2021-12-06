@@ -11,6 +11,15 @@ def test_project():
     assert np.isclose(d, -0.1)
     assert pos.segment == 0 and np.isclose(pos.fraction, 0)
 
+def test_position_conversion():
+    path = traji.Path([(0, 0), (0, 1), (1, 1)])
+    for s in np.linspace(-0.1,1.1,13) * path.length:
+        pos = traji.PathPosition.from_s(path, s)
+
+        if s >= 0 and s <= path.length:
+            assert 0 <= pos.fraction and pos.fraction < 1
+        assert np.isclose(pos.to_s(path), s)
+
 def test_respacing():
     path = traji.Path([(0, 0), (0, 1), (1, 1)])
     respaced = path.respacing(0.1)
@@ -49,4 +58,5 @@ if __name__ == "__main__":
     # test_project()
     # test_respacing()
     # test_densify()
-    test_shapely_interop()
+    # test_shapely_interop()
+    test_position_conversion()

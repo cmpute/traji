@@ -1,3 +1,6 @@
+# cython: profile=True
+# TODO: the flag above is only for debug
+
 from libc.stdlib cimport malloc, free
 from libcpp.vector cimport vector
 from libcpp.utility cimport pair
@@ -45,6 +48,11 @@ cdef class Point:
         return not (self == other)
     def __iter__(self):
         return iter((self._data.x(), self._data.y()))
+    def __array__(self):
+        return self.numpy()
+    def numpy(self):
+        import numpy as np
+        return np.array([self._data.x(), self._data.y()])
     def shapely(self):
         from shapely.geometry import Point
         return Point(self._data.x(), self._data.y())
@@ -317,6 +325,35 @@ cdef class Trajectory(Path):
         ret[:, 2] = self.timestamps
         return ret
 
+    def point_at(self, pos):
+        if isinstance(pos, PathPosition):
+            super().point_at(pos)
+        elif isinstance(pos, float):
+            return Point.wrap(self.ptr().point_at(<TFloat>pos))
+        else:
+            raise ValueError("Unrecognized position input!")
+
+    def tangent_at(self, pos):
+        if isinstance(pos, PathPosition):
+            super().tangent_at(pos)
+        elif isinstance(pos, float):
+            return self.ptr().tangent_at(<TFloat>pos)
+        else:
+            raise ValueError("Unrecognized position input!")
+
+    def velocity_from(self, float s):
+        cdef Vector2 vel = self.ptr().velocity_from(s)
+        return vel.at(0), vel.at(1)
+    def velocity_at(self, pos):
+        cdef Vector2 vel
+        if isinstance(pos, PathPosition):
+            vel = self.ptr().velocity_at((<PathPosition>pos)._data)
+        elif isinstance(pos, float):
+            vel = self.ptr().velocity_at(<TFloat>pos)
+        else:
+            raise ValueError("Unrecognized position input!")
+        return vel.at(0), vel.at(1)
+
 cdef class QuinticPolyTrajectory:
     def __cinit__(self, TFloat T, x0=None, xT=None, y0=None, yT=None, x_coeffs=None, y_coeffs=None):
         cdef Vector6 cx_coeffs, cy_coeffs
@@ -332,7 +369,7 @@ cdef class QuinticPolyTrajectory:
             cx0 = Vector3(x0[0], x0[1], x0[2])
             cxT = Vector3(xT[0], xT[1], xT[2])
             cy0 = Vector3(y0[0], y0[1], y0[2])
-            cy0 = Vector3(y0[0], y0[1], y0[2])
+            cyT = Vector3(yT[0], yT[1], yT[2])
             self._ptr = new cQuinticPolyTrajectory(T, cx0, cxT, cy0, cyT)
         else:
             raise ValueError("No input is given for the QuinticPolyTrajectory")
@@ -361,6 +398,10 @@ cdef class QuinticPolyTrajectory:
     def velocity_at(self, TFloat t):
         cdef Vector2 vel = self._ptr.velocity_at(t)
         return vel.at(0), vel.at(1)
+
+    def acceleration_at(self, TFloat t):
+        cdef Vector2 accel = self._ptr.acceleration_at(t)
+        return accel.at(0), accel.at(1)
 
     def periodize(self, TFloat interval):
         return Trajectory.wrap(self._ptr.periodize(interval))
