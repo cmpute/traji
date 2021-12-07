@@ -4,6 +4,7 @@
 #include "traji.hpp"
 
 using namespace std;
+using namespace std::placeholders;
 
 namespace traji
 {
@@ -122,6 +123,15 @@ namespace traji
             else
                 return solve_acceleration(pos.segment+1);
         }
+    }
+
+    Trajectory Trajectory::resample_at(const std::vector<TFloat> &t_list) const
+    {
+        vector<PathPosition> pos_list = PathPosition::from_t(*this, t_list);
+        vector<Point> plist; plist.reserve(t_list.size());
+        transform(pos_list.begin(), pos_list.end(),
+            std::back_inserter(plist), std::bind(&Path::point_at, this, _1));
+        return Trajectory(Path(move(plist)), t_list);
     }
 
     QuinticPolyTrajectory::QuinticPolyTrajectory(

@@ -3,6 +3,7 @@
 #include "traji.hpp"
 
 using namespace std;
+using namespace std::placeholders;
 
 namespace traji { namespace frenet
 {
@@ -32,22 +33,24 @@ Point to_cartesian(const Path &ref, const Point &point)
 
 Path from_cartesian(const Path &ref, const Path &path)
 {
-    vector<Point> frenet_points(path.size());
-    transform(path.data().begin(), path.data().end(), frenet_points.begin(),
-        [&ref](auto p) { return from_cartesian(ref, p); });
-    return Path(frenet_points.begin(), frenet_points.end());
+    vector<Point> frenet_points; frenet_points.reserve(path.size());
+    transform(path.data().begin(), path.data().end(),
+        back_inserter(frenet_points),
+        bind<Point(const Path&, const Point&)>(from_cartesian, ref, _1));
+    return Path(move(frenet_points));
 }
 
 Path to_cartesian(const Path &ref, const Path &path)
 {
-    vector<Point> cartesian_points(path.size());
-    vector<TFloat> s_list(path.size()); // XXX: avoid copy if the underlying structure is changed to Eigen
-    transform(path.data().begin(), path.data().end(), s_list.begin(),
+    vector<TFloat> s_list; s_list.reserve(path.size());
+    transform(path.data().begin(), path.data().end(), back_inserter(s_list),
               [](const Point &p) { return p.get<0>(); });
+
     vector<PathPosition> pos_list = PathPosition::from_s(ref, s_list);
+    vector<Point> cartesian_points; cartesian_points.reserve(path.size());
     for (size_t i = 0; i < path.size(); i++)
-        cartesian_points[i] = to_cartesian_hint(ref, path.data()[i], pos_list[i]);
-    return Path(cartesian_points.begin(), cartesian_points.end());
+        cartesian_points.push_back(to_cartesian_hint(ref, path.data()[i], pos_list[i]));
+    return Path(move(cartesian_points));
 }
 
 } // namespace frenet    

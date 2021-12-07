@@ -7,6 +7,7 @@
 #include "traji.hpp"
 
 using namespace std;
+using namespace std::placeholders;
 namespace bg = boost::geometry;
 
 namespace traji
@@ -499,12 +500,11 @@ namespace traji
 
     Path Path::resample_from(const vector<TFloat> &s_list) const
     {
-        Path result;
-        result._line.reserve(s_list.size());
         vector<PathPosition> pos_list = PathPosition::from_s(*this, s_list);
-        for (auto pos : pos_list)
-            result._line.push_back(point_at(pos));
-        return result;
+        vector<Point> plist; plist.reserve(s_list.size());
+        transform(pos_list.begin(), pos_list.end(),
+            std::back_inserter(plist), std::bind(&Path::point_at, this, _1));
+        return Path(move(plist));
     }
 
     vector<Point> intersection(const Path &lhs, const Path &rhs)
@@ -521,8 +521,8 @@ namespace traji
         // Also need to benchmark the performance vs boost version
 
         vector<Point> plist = intersection(lhs, rhs);
-        vector<pair<PathPosition, PathPosition>> result (plist.size());
-        std::transform(plist.begin(), plist.end(), result.begin(),
+        vector<pair<PathPosition, PathPosition>> result; result.reserve(plist.size());
+        transform(plist.begin(), plist.end(), back_inserter(result),
             [&lhs, &rhs](const Point& p){ return make_pair(lhs.project(p).second, rhs.project(p).second); });
         return result;
     }

@@ -79,6 +79,8 @@ cdef extern from "traji.hpp" namespace "traji":
         TFloat to_t(const Trajectory &traj)
         @staticmethod
         PathPosition from_t(const Trajectory &traj, TFloat t)
+        @staticmethod
+        vector[PathPosition] from_t_batch "from_t" (const Trajectory &traj, const vector[TFloat] &t)
 
     cdef cppclass Path:
         Path ()
@@ -128,6 +130,8 @@ cdef extern from "traji.hpp" namespace "traji":
         Vector2 acceleration_from(TFloat s, bool interpolate)
         Vector2 acceleration_at(TFloat t, bool interpolate)
         Vector2 acceleration_at(const PathPosition &t, bool interpolate)
+
+        Trajectory resample_at(const vector[TFloat] &t_list)
 
     cdef cppclass QuinticPolyTrajectory:
         QuinticPolyTrajectory(TFloat T, const Vector6 &x_coeffs, const Vector6 &y_coeffs)

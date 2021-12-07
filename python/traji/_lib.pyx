@@ -108,9 +108,15 @@ cdef class PathPosition:
 
     @classmethod
     def from_t(cls, traj, t):
+        cdef vector[TFloat] t_list
+        cdef vector[cPathPosition] p_list
         if isinstance(traj, Trajectory):
             if isinstance(t, (int, float)):
                 return PathPosition.wrap(cPathPosition.from_t(deref((<Trajectory>traj).ptr()), <TFloat>t))
+            elif isinstance(t, (list, tuple)):
+                t_list = t
+                p_list = cPathPosition.from_t_batch(deref((<Trajectory>traj).ptr()), t_list)
+                return [PathPosition.wrap(p) for p in p_list]
             else:
                 raise ValueError("Invalid t input!")
         else:
@@ -372,6 +378,10 @@ cdef class Trajectory(Path):
         else:
             raise ValueError("Unrecognized position input!")
         return acc.at(0), acc.at(1)
+
+    def resample_at(self, t_list):
+        cdef vector[TFloat] clist = t_list
+        return Trajectory.wrap(self.ptr().resample_at(clist))
 
 cdef class QuinticPolyTrajectory:
     def __cinit__(self, TFloat T, x0=None, xT=None, y0=None, yT=None, x_coeffs=None, y_coeffs=None):
