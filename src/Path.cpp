@@ -495,6 +495,7 @@ namespace traji
         vector<PathPosition> pos_list = PathPosition::from_s(*this, s_list);
         for (auto pos : pos_list)
             result._line.push_back(point_at(pos));
+        return result;
     }
 
     vector<Point> intersection(const Path &lhs, const Path &rhs)

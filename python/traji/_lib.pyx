@@ -11,6 +11,7 @@ from traji.decl cimport (to_string, TFloat, Vector2, Vector3, Vector6,
     make_vec6, SegmentType, SegmentType_Arc, SegmentType_Line,
     from_cartesian, to_cartesian,
     distance as cdistance, arg_distance as carg_distance,
+    tdistance as ctdistance,
     intersection as cintersection, arg_intersection as carg_intersection)
 
 cdef class Point:
@@ -261,6 +262,9 @@ cdef class Path:
             raise ValueError("The valid segment types are {line, arc}")
 
         return HeteroPath.wrap(self._ptr.smooth(smooth_radius, ctype))
+    def resample(self, s_list):
+        cdef vector[TFloat] clist = s_list
+        return Path.wrap(self._ptr.resample(clist))
 
 cdef class Trajectory(Path):
     def __cinit__(self, points, timestamps=None, bint _noinit=False):
@@ -411,10 +415,42 @@ cdef class QuinticPolyTrajectory:
     def velocity_at(self, TFloat t):
         cdef Vector2 vel = self._ptr.velocity_at(t)
         return vel.at(0), vel.at(1)
-
     def acceleration_at(self, TFloat t):
         cdef Vector2 accel = self._ptr.acceleration_at(t)
         return accel.at(0), accel.at(1)
+
+    def periodize(self, TFloat interval):
+        return Trajectory.wrap(self._ptr.periodize(interval))
+
+cdef class CTRATrajectory:
+    def __cinit__(self, TFloat T, p, theta=None, v=None, a=None, omega=None):
+        cdef Vector6 init_state
+        if hasattr(p, '__len__') and len(p) == 6:
+            init_state = make_vec6(p[0], p[1], p[2], p[3], p[4], p[5])
+            self._ptr = new cCTRATrajectory(T, init_state)
+        elif not (v is None) and not (theta is None):
+            if not isinstance(p, Point):
+                p = Point(p)
+            self._ptr = new cCTRATrajectory(T, (<Point>p)._data, theta, v, a or 0, omega or 0)
+        else:
+            raise ValueError("No v and theta input is given for the CTRATrajectory")
+        pass
+    def __dealloc__(self):
+        del self._ptr
+
+    property T:
+        def __get__(self): return self._ptr.T()
+    property initial_state:
+        def __get__(self):
+            return [self._ptr.initial_state().at(i) for i in range(6)]
+
+    def point_at(self, TFloat t):
+        return Point.wrap(self._ptr.point_at(t))
+    def tangent_at(self, TFloat t):
+        return self._ptr.tangent_at(t)
+    def velocity_at(self, TFloat t):
+        cdef Vector2 vel = self._ptr.velocity_at(t)
+        return vel.at(0), vel.at(1)
 
     def periodize(self, TFloat interval):
         return Trajectory.wrap(self._ptr.periodize(interval))
@@ -458,16 +494,25 @@ def distance(lhs, rhs):
         if isinstance(rhs, Point):
             return cdistance(deref((<Path>lhs)._ptr),  (<Point>rhs)._data)
         else:
-            raise ValueError("Unsupported type")
+            raise ValueError("Unsupported rhs type")
     elif isinstance(lhs, Point):
         if isinstance(rhs, Point):
             return cdistance((<Point>lhs)._data, (<Point>rhs)._data)
         elif isinstance(rhs, Path):
             return cdistance(deref((<Path>rhs)._ptr), (<Point>lhs)._data)
         else:
-            raise ValueError("Unsupported type")
+            raise ValueError("Unsupported rhs type")
     else:
-        raise ValueError("Unsupported type")
+        raise ValueError("Unsupported lhs type")
+
+def tdistance(lhs, rhs):
+    if isinstance(lhs, Trajectory):
+        if isinstance(rhs, Trajectory):
+            return ctdistance(deref((<Trajectory>lhs).ptr()), deref((<Trajectory>rhs).ptr()))
+        else:
+            raise ValueError("Unsupported rhs type")
+    else:
+        raise ValueError("Unsupported lhs type")
 
 def intersection(lhs, rhs):
     cdef vector[cPoint] points_result

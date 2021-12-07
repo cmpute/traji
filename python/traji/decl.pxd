@@ -143,7 +143,19 @@ cdef extern from "traji.hpp" namespace "traji":
         Vector2 velocity_at(TFloat t)
         Vector2 acceleration_at(TFloat t)
 
-        Trajectory rasterize(TFloat resolution)
+        Trajectory periodize(TFloat interval)
+
+    cdef cppclass CTRATrajectory:
+        CTRATrajectory(TFloat T, const Vector6 &init_state)
+        CTRATrajectory(TFloat T, Point p, TFloat theta, TFloat v, TFloat a, TFloat omega)
+
+        const Vector6& initial_state()
+        TFloat T()
+
+        Point point_at(TFloat t)
+        TFloat tangent_at(TFloat t)
+        Vector2 velocity_at(TFloat t)
+
         Trajectory periodize(TFloat interval)
 
     cdef cppclass HeteroPath:
@@ -152,9 +164,11 @@ cdef extern from "traji.hpp" namespace "traji":
 
 # binary operations on the paths
 cdef extern from "traji.hpp" namespace "traji":
-    cdef TFloat distance(const Point& lhs, const Point &rhs)
-    cdef TFloat distance(const Path& lhs, const Point &rhs)
+    cdef TFloat distance(const Point &lhs, const Point &rhs)
+    cdef TFloat distance(const Path &lhs, const Point &rhs)
     cdef PathPosition arg_distance(const Path &lhs, const Point &rhs)
+
+    cdef TFloat tdistance(const Trajectory &lhs, const Trajectory &rhs)
 
     cdef vector[Point] intersection(const Path& lhs, const Path &rhs)
     cdef vector[pair[PathPosition, PathPosition]] arg_intersection(const Path& lhs, const Path& rhs)

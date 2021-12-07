@@ -69,6 +69,7 @@ struct PathPosition
     /// Convert the position to the distance to the timestamp
     TFloat to_t(const Trajectory &traj);
     static PathPosition from_t(const Trajectory &traj, TFloat t);
+    static std::vector<PathPosition> from_t(const Trajectory &path, const std::vector<TFloat> &t_list);
 };
 
 /// (immutable) non-parametric linestring
@@ -93,6 +94,7 @@ private:
 public:
     friend class PathPosition;
     friend class QuinticPolyTrajectory;
+    friend class CTRATrajectory;
 
     // TODO: remove points with zero distance?
     Path() {}
@@ -174,6 +176,7 @@ private:
 public:
     friend class PathPosition;
     friend class QuinticPolyTrajectory;
+    friend class CTRATrajectory;
 
     Trajectory() {}
     Trajectory(const Path& path, const std::vector<TFloat> &timestamps)
@@ -185,13 +188,15 @@ public:
     const std::vector<TFloat>& timestamps() const { return _timestamps; }
 
     /// Get the point indicated by the time
+    using Path::point_at;
     inline Point point_at(TFloat t) const 
     {
-        return Path::point_at(PathPosition::from_t(*this, t));
+        return point_at(PathPosition::from_t(*this, t));
     }
+    using Path::tangent_at;
     inline TFloat tangent_at(TFloat t) const
     {
-        return Path::tangent_at(PathPosition::from_t(*this, t));
+        return tangent_at(PathPosition::from_t(*this, t));
     }
     Vector2 velocity_at(const PathPosition &pos, bool interpolate = false) const;
     inline Vector2 velocity_from(TFloat s, bool interpolate = false) const
@@ -234,19 +239,46 @@ public:
     QuinticPolyTrajectory(TFloat T, const Vector3 &x0, const Vector3 &xT,
                           const Vector3 &y0, const Vector3 &yT);
 
-    const Vector6& x_coeffs() const { return _x_coeffs; }
-    const Vector6& y_coeffs() const { return _y_coeffs; }
-    TFloat T() const { return _T; }
+    inline const Vector6& x_coeffs() const { return _x_coeffs; }
+    inline const Vector6& y_coeffs() const { return _y_coeffs; }
+    inline TFloat T() const { return _T; }
 
     Point point_at(TFloat t) const;
     TFloat tangent_at(TFloat t) const;
     Vector2 velocity_at(TFloat t) const;
     Vector2 acceleration_at(TFloat t) const;
 
-    Trajectory rasterize(TFloat resolution) const;
+    // Trajectory rasterize(TFloat resolution) const;
     Trajectory periodize(TFloat interval) const;
 };
 
+
+/// Trajectory of a Constant Turn-Rate and (longitudinal) Acceleration model.
+class CTRATrajectory
+{
+protected:
+    Vector6 _init_state; // [x, y, theta, v, a, omega]
+    TFloat _T;
+
+public:
+    CTRATrajectory(TFloat T, const Vector6 &init_state) : _T(T), _init_state(init_state) {}
+    CTRATrajectory(TFloat T, Point p, TFloat theta, TFloat v, TFloat a = 0, TFloat omega = 0)
+        : _T(T), _init_state() {
+        _init_state << p.get<0>(), p.get<1>(), theta, v, a, omega;
+    }
+
+    inline const Vector6& initial_state() const { return _init_state; }
+    inline TFloat T() const { return _T; }
+
+    Point point_at(TFloat t) const;
+    inline TFloat tangent_at(TFloat t) const
+    {
+        return /*theta*/ _init_state(2) + /*omega*/ _init_state(5) * t;
+    }
+    Vector2 velocity_at(TFloat t) const;
+
+    Trajectory periodize(TFloat interval) const;
+};
 // TODO: spline interpolated paths are also parametric paths
 
 // ==================================== Hybrid paths ====================================
@@ -314,6 +346,9 @@ namespace frenet
 inline TFloat distance(const Point &lhs, const Point &rhs) { return boost::geometry::distance(lhs, rhs); }
 inline TFloat distance(const Path &lhs, const Point &rhs) { return lhs.project(rhs).first; }
 inline PathPosition arg_distance(const Path &lhs, const Point &rhs) { return lhs.project(rhs).second; }
+
+/// Return the closest distance at the same time point between two trajectories
+TFloat tdistance(const Trajectory &lhs, const Trajectory &rhs);
 
 std::vector<Point> intersection(const Path &lhs, const Path &rhs);
 std::vector<std::pair<PathPosition, PathPosition>> arg_intersection(const Path &lhs, const Path &rhs);

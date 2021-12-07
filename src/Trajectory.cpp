@@ -25,6 +25,34 @@ namespace traji
         return result;
     }
 
+    // this method is analog to PathPosition::from_s(path, s_list)
+    vector<PathPosition> PathPosition::from_t(const Trajectory &path, const std::vector<TFloat> &t_list)
+    {
+        vector<PathPosition> result;
+        result.reserve(t_list.size());
+
+        TFloat cur_t = 0;
+        size_t cur_idx = 1; // index of first point that has s larger than cur_s
+        for (auto t : t_list)
+            if (t < cur_t)
+                result.push_back(PathPosition::from_t(path, t));
+            else
+            {
+                while (t > path._timestamps[cur_idx] && cur_idx < (path.size() - 1))
+                    cur_idx++;
+
+                PathPosition pos;
+                pos.segment = cur_idx - 1;
+                auto t0 = path._timestamps[cur_idx-1], t1 = path._timestamps[cur_idx];
+                pos.fraction = (t - t0) / (t1 - t0);
+                result.push_back(pos);
+
+                cur_t = t;
+            }
+
+        return result;
+    }
+
     Vector2 Trajectory::solve_velocity(size_t segment_idx) const
     {
         assert (segment_idx >= 0 && segment_idx <= _line.size() - 2);
@@ -185,6 +213,86 @@ namespace traji
         }
         result.update_distance();
         return result;
+    }
+
+    Point CTRATrajectory::point_at(TFloat t) const
+    {
+        TFloat x = _init_state(0), y = _init_state(1), th = _init_state(2);
+        TFloat v = _init_state(3), a = _init_state(4), w = _init_state(5);
+
+        TFloat nth = th + w * t;
+        TFloat nv = v + a * t;
+        TFloat nx, ny;
+        if (w == 0)
+        {
+            nx = x + (nv + v)/2 * cos(th) * t;
+            ny = y + (nv + v)/2 * sin(th) * t;
+        }
+        else
+        {
+            nx = x + ( nv*w*sin(nth) + a*cos(nth) - v*w*sin(th) - a*cos(th)) / (w*w);
+            ny = y + (-nv*w*cos(nth) + a*sin(nth) + v*w*cos(th) - a*sin(th)) / (w*w);
+        }
+        return Point(nx, ny);
+    }
+
+    Vector2 CTRATrajectory::velocity_at(TFloat t) const
+    {
+        TFloat nth = tangent_at(t);
+        TFloat nv = _init_state(3) + _init_state(4) * t;
+        return Vector2(nv * cos(nth), nv * sin(nth));
+    }
+
+    Trajectory CTRATrajectory::periodize(TFloat interval) const
+    {
+        auto t = VectorX::LinSpaced((size_t)ceil(_T / interval) + 1, 0, _T).array();
+
+        TFloat x = _init_state(0), y = _init_state(1), th = _init_state(2);
+        TFloat v = _init_state(3), a = _init_state(4), w = _init_state(5);
+
+        auto nth = th + w * t;
+        auto nv = v + a * t;
+        VectorX nx, ny;
+        if (w == 0)
+        {
+            nx = x + (nv + v)/2 * cos(th) * t;
+            ny = y + (nv + v)/2 * sin(th) * t;
+        }
+        else
+        {
+            nx = x + ( nv*w*sin(nth) + a*cos(nth) - v*w*sin(th) - a*cos(th)) / (w*w);
+            ny = y + (-nv*w*cos(nth) + a*sin(nth) + v*w*cos(th) - a*sin(th)) / (w*w);
+        }
+
+        Trajectory result;
+        result._line.reserve(t.rows());
+        result._timestamps.reserve(t.rows());
+        for (size_t i = 0; i < t.rows(); i++)
+        {
+            result._line.emplace_back(nx(i), ny(i));
+            result._timestamps.emplace_back(t(i));
+        }
+        result.update_distance();
+        return result;
+    }
+
+    TFloat tdistance(const Trajectory &lhs, const Trajectory &rhs)
+    {
+        TFloat min_dist = numeric_limits<TFloat>::max();
+        vector<PathPosition> rhs_pos = PathPosition::from_t(lhs, rhs.timestamps());
+        for (int i = 0; i < rhs_pos.size(); i++)
+        {
+            TFloat dist = distance(lhs.point_at(rhs_pos[i]), rhs[i]);
+            min_dist = min(min_dist, dist);
+        }
+
+        vector<PathPosition> lhs_pos = PathPosition::from_t(rhs, lhs.timestamps());
+        for (int i = 0; i < lhs_pos.size(); i++)
+        {
+            TFloat dist = distance(rhs.point_at(lhs_pos[i]), lhs[i]);
+            min_dist = min(min_dist, dist);
+        }
+        return min_dist;
     }
 }
 
