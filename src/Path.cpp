@@ -135,14 +135,14 @@ namespace traji
         return result;
     }
 
-    void Path::update_distance()
+    void Path::update_distance(TFloat s0)
     {
         if (_line.size() == 1) // Fix invalid line string (only 1 point)
             _line.clear();
 
-        TFloat s = 0;
+        TFloat s = s0;
         _distance.resize(_line.size());
-        _distance[0] = 0;
+        _distance[0] = s;
         for (int i = 1; i < _line.size(); i++)
         {
             s += distance(_line[i], _line[i-1]);
@@ -192,6 +192,12 @@ namespace traji
         );
     }
 
+    TFloat Path::interpolate_at(const std::vector<TFloat> &values, const PathPosition &pos) const
+    {
+        assert (values.size() == size());
+        return values[pos.segment] * pos.fraction + values[pos.segment+1] * (1 - pos.fraction);
+    }
+
     pair<TFloat, PathPosition> Path::project(const Point &point) const
     {
         vector<pair<TFloat, TFloat>> dists(_line.size() - 1);
@@ -219,6 +225,9 @@ namespace traji
 
     Path Path::densify(TFloat resolution) const
     {
+        if (size() == 0)
+            return *this;
+
         Path result;
         result._line.push_back(_line.front());
         for (size_t i = 1; i < _line.size(); i++)
@@ -233,7 +242,7 @@ namespace traji
             }
         }
 
-        result.update_distance();
+        result.update_distance(_distance[0]);
         return result;
     }
 
@@ -304,7 +313,7 @@ namespace traji
         if (residual_s > segment_length)
             result._line.push_back(_line.back());
 
-        result.update_distance();
+        result.update_distance(_distance[0]);
         return result;
     }
 
@@ -389,7 +398,7 @@ namespace traji
         if (residual_s > segment_length)
             result._line.push_back(_line.back());
 
-        result.update_distance();
+        result.update_distance(_distance[0]);
         return result;
     }
 
@@ -488,7 +497,7 @@ namespace traji
         return result;
     }
 
-    Path Path::resample(const vector<TFloat> &s_list) const
+    Path Path::resample_from(const vector<TFloat> &s_list) const
     {
         Path result;
         result._line.reserve(s_list.size());

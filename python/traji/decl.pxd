@@ -83,7 +83,7 @@ cdef extern from "traji.hpp" namespace "traji":
     cdef cppclass Path:
         Path ()
         Path (const Path&)
-        Path (vector[Point].iterator begin, vector[Point].iterator end)
+        Path (vector[Point].iterator begin, vector[Point].iterator end, TFloat s0)
 
         size_t size()
         TFloat length()
@@ -109,14 +109,14 @@ cdef extern from "traji.hpp" namespace "traji":
         Path respacing(TFloat resolution, TFloat smooth_radius)
         Path densify(TFloat resolution)
         HeteroPath smooth(TFloat smooth_radius, SegmentType segtype)
-        Path resample(const vector[TFloat] &s_list)
+        Path resample_from(const vector[TFloat] &s_list)
 
     cdef cppclass Trajectory(Path):
         Trajectory()
         Trajectory(const Trajectory& traj)
         Trajectory(const Path& path, vector[TFloat] &timestamps)
         Trajectory(vector[Point].iterator begin, vector[Point].iterator end,
-                   vector[TFloat].iterator t_begin, vector[TFloat].iterator t_end)
+                   vector[TFloat].iterator t_begin, vector[TFloat].iterator t_end, TFloat s0)
 
         const vector[TFloat]& timestamps()
 

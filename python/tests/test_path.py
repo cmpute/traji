@@ -46,10 +46,10 @@ def test_resample():
     path = traji.Path([(0, 0), (0, 1), (1, 1)])
 
     s_list = np.random.rand(10) * 3 - 0.5
-    assert path.resample(s_list) == traji.Path([path.point_from(s) for s in s_list])
+    assert path.resample_from(s_list) == traji.Path([path.point_from(s) for s in s_list])
 
     s_list = np.sort(np.random.rand(10) * 3 - 0.5)
-    assert path.resample(s_list) == traji.Path([path.point_from(s) for s in s_list])
+    assert path.resample_from(s_list) == traji.Path([path.point_from(s) for s in s_list])
 
 def test_shapely_interop():
     point = traji.Point([1, 2])
@@ -64,9 +64,9 @@ def test_shapely_interop():
     assert path == path2
 
 if __name__ == "__main__":
-    # test_project()
-    # test_respacing()
-    # test_densify()
+    test_project()
+    test_respacing()
+    test_densify()
     test_resample()
-    # test_shapely_interop()
-    # test_position_conversion()
+    test_shapely_interop()
+    test_position_conversion()

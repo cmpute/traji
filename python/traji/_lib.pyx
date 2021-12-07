@@ -140,7 +140,7 @@ cdef class _PathIterator:
             return p
 
 cdef class Path:
-    def __cinit__(self, points, bint _noinit=False):
+    def __cinit__(self, points, TFloat s0 = 0, bint _noinit=False):
         cdef vector[cPoint] cpoints
         if type(self) is Path:
             if _noinit:
@@ -155,7 +155,7 @@ cdef class Path:
                         cpoints[i] = (<Point>p)._data
                     else:
                         cpoints[i] = cPoint(p[0], p[1])
-                self._ptr = new cPath(cpoints.begin(), cpoints.end())
+                self._ptr = new cPath(cpoints.begin(), cpoints.end(), s0)
             else:
                 self._ptr = new cPath()
 
@@ -238,9 +238,11 @@ cdef class Path:
         return self._ptr.tangent_at(pos._data)
 
     def interpolate_from(self, values, TFloat s):
-        pass
+        cdef vector[TFloat] cvalues = values
+        return self._ptr.interpolate_from(cvalues, s)
     def interpolate_at(self, values, PathPosition pos):
-        pass
+        cdef vector[TFloat] cvalues = values
+        return self._ptr.interpolate_from(cvalues, pos)
 
     def project(self, Point point):
         cdef pair[TFloat, cPathPosition] result = self._ptr.project(point._data)
@@ -262,12 +264,12 @@ cdef class Path:
             raise ValueError("The valid segment types are {line, arc}")
 
         return HeteroPath.wrap(self._ptr.smooth(smooth_radius, ctype))
-    def resample(self, s_list):
+    def resample_from(self, s_list):
         cdef vector[TFloat] clist = s_list
-        return Path.wrap(self._ptr.resample(clist))
+        return Path.wrap(self._ptr.resample_from(clist))
 
 cdef class Trajectory(Path):
-    def __cinit__(self, points, timestamps=None, bint _noinit=False):
+    def __cinit__(self, points, timestamps=None, TFloat s0 = 0, bint _noinit=False):
         cdef vector[cPoint] cpoints
         cdef vector[TFloat] tstamps
 
@@ -295,7 +297,7 @@ cdef class Trajectory(Path):
                 if tstamps.size() == 0:
                     raise ValueError("Timestamps are required")
                 self._ptr = new cTrajectory(cpoints.begin(), cpoints.end(),
-                    tstamps.begin(), tstamps.end())
+                    tstamps.begin(), tstamps.end(), s0)
             else:
                 self._ptr = new cTrajectory()
 
@@ -433,8 +435,7 @@ cdef class CTRATrajectory:
                 p = Point(p)
             self._ptr = new cCTRATrajectory(T, (<Point>p)._data, theta, v, a or 0, omega or 0)
         else:
-            raise ValueError("No v and theta input is given for the CTRATrajectory")
-        pass
+            raise ValueError("No v and theta input is given for the CTRATrajectory!")
     def __dealloc__(self):
         del self._ptr
 

@@ -7,6 +7,7 @@
 #include <boost/geometry.hpp>
 #include <Eigen/Core>
 
+/* forward declarations */
 namespace traji {
 
 typedef float TFloat;
@@ -16,8 +17,6 @@ typedef Eigen::Matrix<TFloat, 3, 3> Matrix3;
 typedef Eigen::Matrix<TFloat, 6, 1> Vector6;
 typedef Eigen::Matrix<TFloat, -1, 1> VectorX;
 typedef Eigen::Array<TFloat, -1, 1> ArrayX;
-typedef boost::geometry::model::point<TFloat, 2, boost::geometry::cs::cartesian> Point;
-typedef boost::geometry::model::linestring<Point> LineString;
 
 #ifndef M_PI
 constexpr TFloat pi = 3.14159265358979323846;
@@ -27,12 +26,28 @@ constexpr TFloat pi = M_PI;
 constexpr TFloat pi2 = M_PI_2;
 #endif
 
-// forward declaration
+typedef boost::geometry::model::point<TFloat, 2, boost::geometry::cs::cartesian> Point;
+typedef boost::geometry::model::linestring<Point> LineString;
+
 class Path;
 class Trajectory;
 class HeteroSegment;
 class HeteroPath;
 class QuinticPolyTrajectory;
+class CTRATrajectory;
+
+} // namespace traji
+
+/* helper functions for boost.geometry */
+namespace boost { namespace geometry { namespace model
+{
+inline bool operator==(const traji::Point& lhs, const traji::Point& rhs) { return lhs.get<0>() == rhs.get<0>() && lhs.get<1>() == rhs.get<1>(); }
+inline bool operator!=(const traji::Point& lhs, const traji::Point& rhs) { return !(lhs == rhs); }
+}}} // namespace boost.geometry.model
+
+/* main implementations */
+namespace traji
+{
 
 enum class SegmentType
 {
@@ -53,7 +68,7 @@ enum class SegmentType
 /// When the position is on the extended first segment, segment = 0, fraction < 0
 struct PathPosition
 {
-    std::size_t component; // index in multi-linestring
+    std::size_t component; // index in multi-path collection
     std::size_t segment; // segment index in the line string
     TFloat fraction; // fraction of the point in the segment
     
@@ -73,16 +88,15 @@ struct PathPosition
 };
 
 /// (immutable) non-parametric linestring
-// TODO: implement move semantics
 class Path
 {
 protected:
     LineString _line; // the geometry of the line string
     std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line.
-                                   // first value is always zero. (TODO: support non-zero initial s?)
+                                   // first value is always zero.
 
     /// Update _distance values
-    void update_distance();
+    void update_distance(TFloat s0 = 0);
 
     /// Calculate feasible smooth radius given the input as max limit
     std::vector<TFloat> calc_feasible_radius(TFloat smooth_radius) const;
@@ -96,11 +110,12 @@ public:
     friend class QuinticPolyTrajectory;
     friend class CTRATrajectory;
 
-    // TODO: remove points with zero distance?
-    Path() {}
+    inline Path() {}
     template<typename Iterator>
-    Path(Iterator begin, Iterator end) : _line(begin, end) { update_distance(); }
-    Path(std::initializer_list<Point> l) : _line(l) { update_distance(); }
+    inline Path(Iterator begin, Iterator end, TFloat s0 = 0) : _line(begin, end) { update_distance(s0); }
+    inline Path(std::initializer_list<Point> l) : Path(l.begin(), l.end()) {}
+    inline Path(const std::vector<Point> &l, TFloat s0 = 0): Path(l.begin(), l.end(), s0) {}
+    inline Path(std::vector<Point> &&l, TFloat s0 = 0): Path(l.begin(), l.end(), s0) {}
 
     inline std::size_t size() const { return _line.size(); }
     inline TFloat length() const { return _distance.back(); }
@@ -159,7 +174,7 @@ public:
 
     /// Return a path represented by a list of distance to start. 
     /// The best performance is achieved when s_list is sorted ascendingly.
-    Path resample(const std::vector<TFloat> &s_list) const;
+    Path resample_from(const std::vector<TFloat> &s_list) const;
 };
 
 /// non-parametric linestring with time, assuming constant acceleration
@@ -178,12 +193,12 @@ public:
     friend class QuinticPolyTrajectory;
     friend class CTRATrajectory;
 
-    Trajectory() {}
-    Trajectory(const Path& path, const std::vector<TFloat> &timestamps)
-        : Path(path), _timestamps(timestamps) {}
+    inline Trajectory() {}
+    inline Trajectory(const Path& path, const std::vector<TFloat> &timestamps) : Path(path), _timestamps(timestamps) {}
+    inline Trajectory(Path&& path, std::vector<TFloat> &&timestamps) : Path(path), _timestamps(timestamps) {}
     template<typename Iterator, typename TIterator>
-    Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end)
-        : Path(begin, end), _timestamps(t_begin, t_end) { update_distance(); }
+    inline Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end, TFloat s0 = 0)
+        : Path(begin, end, s0), _timestamps(t_begin, t_end) { }
 
     const std::vector<TFloat>& timestamps() const { return _timestamps; }
 
@@ -218,8 +233,11 @@ public:
     }
 
     /// Return the trajectory represented by points with equal time intervals
-    // TODO: this should preserve the velocity
     Trajectory reperiodize(TFloat interval) const;
+
+    /// Return a path represented by a list of timestamp. 
+    /// The best performance is achieved when t_list is sorted ascendingly.
+    Trajectory resample_at(const std::vector<TFloat> &t_list) const;
 };
 
 
@@ -365,17 +383,6 @@ bool operator==(const Path& lhs, const Path& rhs);
 inline bool operator!=(const Path& lhs, const Path& rhs) { return !(lhs == rhs); }
 
 } // namespace traji
-
-namespace boost { namespace geometry { namespace model
-{
-    
-inline bool operator==(const traji::Point& lhs, const traji::Point& rhs)
-{
-    return lhs.get<0>() == rhs.get<0>() && lhs.get<1>() == rhs.get<1>();
-}
-inline bool operator!=(const traji::Point& lhs, const traji::Point& rhs) { return !(lhs == rhs); }
-
-}}} // namespace boost.geometry.model
 
 namespace std
 {
