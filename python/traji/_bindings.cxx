@@ -25,7 +25,7 @@ inline Point cast_point(py::object point)
     }
 }
 
-PYBIND11_MODULE(_lib2, m) {
+PYBIND11_MODULE(_bindings, m) {
 
     py::enum_<SegmentType>(m, "SegmentType")
         .value("Line", SegmentType::Line)

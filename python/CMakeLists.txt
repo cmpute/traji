@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(traji_cython)
+project(traji_bindings)
 
 find_package(PythonExtensions REQUIRED)
-find_package(Cython REQUIRED)
+find_package(pybind11 REQUIRED)
 find_package(NumPy REQUIRED)
 include_directories(${NumPy_INCLUDE_DIRS})
 

@@ -1,10 +1,3 @@
-add_cython_target(_lib CXX)
-add_library(_lib MODULE ${_lib})
-target_link_libraries(_lib traji)
-python_extension_module(_lib)
-install(TARGETS _lib LIBRARY DESTINATION traji)
-
-find_package(pybind11 REQUIRED)
-pybind11_add_module(_lib2 _lib2.cxx)
-target_link_libraries(_lib2 PUBLIC traji)
-install(TARGETS _lib2 LIBRARY DESTINATION traji)
+pybind11_add_module(_bindings _bindings.cxx)
+target_link_libraries(_bindings PUBLIC traji)
+install(TARGETS _bindings LIBRARY DESTINATION traji)

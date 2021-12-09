@@ -19,7 +19,7 @@ The library contains the following functionalities for these concepts with effic
 
 For C++ API, please refer to the single header file [traji.hpp](include/traji.hpp) for the library.
 
-For Python API, please refer to the type annotation file [_lib.pyi](python/traji/_lib.pyi) for an overview of the definitions.
+For Python API, please refer to the type annotation file [_bindings.pyi](python/traji/_bindings.pyi) for an overview of the definitions.
 
 ## Reference
 
