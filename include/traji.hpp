@@ -72,6 +72,12 @@ struct PathPosition
     std::size_t segment; // segment index in the line string
     TFloat fraction; // fraction of the point in the segment
     
+    PathPosition() {} // TODO: remove this after not using Cython
+    PathPosition(std::size_t component_, std::size_t segment_, TFloat fraction_)
+        : component(component_), segment(segment_), fraction(fraction_) {}
+    PathPosition(std::size_t segment_, TFloat fraction_)
+        : component(0), segment(segment_), fraction(fraction_) {}
+
     /// Convert the position to the distance to the beginning
     TFloat to_s(const Path &path);
     TFloat to_s(const HeteroPath &path);

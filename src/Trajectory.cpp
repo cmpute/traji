@@ -20,10 +20,7 @@ namespace traji
 
         auto t0 = traj._timestamps[segment_idx], t1 = traj._timestamps[segment_idx+1];
 
-        PathPosition result;
-        result.segment = segment_idx;
-        result.fraction = (t - t0) / (t1 - t0);
-        return result;
+        return PathPosition(segment_idx, (t - t0) / (t1 - t0));
     }
 
     // this method is analog to PathPosition::from_s(path, s_list)
@@ -42,11 +39,8 @@ namespace traji
                 while (t > path._timestamps[cur_idx] && cur_idx < (path.size() - 1))
                     cur_idx++;
 
-                PathPosition pos;
-                pos.segment = cur_idx - 1;
                 auto t0 = path._timestamps[cur_idx-1], t1 = path._timestamps[cur_idx];
-                pos.fraction = (t - t0) / (t1 - t0);
-                result.push_back(pos);
+                result.push_back(PathPosition(cur_idx - 1, (t - t0) / (t1 - t0)));
 
                 cur_t = t;
             }

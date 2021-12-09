@@ -130,10 +130,7 @@ namespace traji
 
         auto s0 = path._distance[segment_idx], s1 = path._distance[segment_idx+1];
 
-        PathPosition result;
-        result.segment = segment_idx;
-        result.fraction = (s - s0) / (s1 - s0);
-        return result;
+        return PathPosition(segment_idx, (s - s0) / (s1 - s0));
     }
 
     void Path::update_distance(TFloat s0)
@@ -166,11 +163,8 @@ namespace traji
                 while (s > path._distance[cur_idx] && cur_idx < (path.size() - 1))
                     cur_idx++;
 
-                PathPosition pos;
-                pos.segment = cur_idx - 1;
                 auto s0 = path._distance[cur_idx-1], s1 = path._distance[cur_idx];
-                pos.fraction = (s - s0) / (s1 - s0);
-                result.push_back(pos);
+                result.push_back(PathPosition(cur_idx - 1, (s - s0) / (s1 - s0)));
 
                 cur_s = s;
             }
@@ -217,11 +211,8 @@ namespace traji
         auto min_idx = distance(comp_dists.begin(),
             min_element(comp_dists.begin(), comp_dists.end()));
 
-        pair<TFloat, PathPosition> result;
-        result.first = dists[min_idx].first;
-        result.second.segment = min_idx;
-        result.second.fraction = dists[min_idx].second;
-        return result;
+        return make_pair(dists[min_idx].first,
+            PathPosition(min_idx, dists[min_idx].second));
     }
 
     Path Path::densify(TFloat resolution) const
