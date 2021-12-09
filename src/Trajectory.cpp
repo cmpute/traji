@@ -282,6 +282,8 @@ namespace traji
 
     TFloat tdistance(const Trajectory &lhs, const Trajectory &rhs)
     {
+        // TODO: this implementation is not correct, we need 3D segment distance
+
         TFloat min_dist = numeric_limits<TFloat>::max();
         vector<PathPosition> rhs_pos = PathPosition::from_t(lhs, rhs.timestamps());
         for (int i = 0; i < rhs_pos.size(); i++)

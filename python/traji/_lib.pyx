@@ -146,12 +146,12 @@ cdef class _PathIterator:
             return p
 
 cdef class Path:
-    def __cinit__(self, points, TFloat s0 = 0, bint _noinit=False):
+    def __cinit__(self, points, s0=0, bint _noinit=False):
         cdef vector[cPoint] cpoints
         if type(self) is Path:
             if _noinit:
                 self._ptr = NULL
-            elif points:
+            elif not (points is None):
                 if hasattr(points, 'coords'): # support for shapely geometries
                     points = points.coords
 
@@ -275,7 +275,7 @@ cdef class Path:
         return Path.wrap(self._ptr.resample_from(clist))
 
 cdef class Trajectory(Path):
-    def __cinit__(self, points, timestamps=None, TFloat s0 = 0, bint _noinit=False):
+    def __cinit__(self, points, timestamps=None, s0=0, bint _noinit=False):
         cdef vector[cPoint] cpoints
         cdef vector[TFloat] tstamps
 
@@ -283,11 +283,11 @@ cdef class Trajectory(Path):
             if _noinit:
                 self._ptr = NULL
             elif isinstance(points, Path):
-                if not timestamps:
+                if timestamps is None:
                     raise ValueError("Timestamps are required")
                 tstamps = timestamps
                 self._ptr = new cTrajectory(deref((<Path>points)._ptr), tstamps)
-            elif points:
+            elif not (points is None):
                 cpoints = vector[cPoint](len(points))
                 for i, p in enumerate(points):
                     if isinstance(p, Point):
@@ -298,7 +298,7 @@ cdef class Trajectory(Path):
                     tstamps = vector[TFloat](len(points))
                     for i, p in enumerate(points):
                         tstamps[i] = p[2]
-                if timestamps is not None:
+                if not (timestamps is None):
                     tstamps = timestamps
                 if tstamps.size() == 0:
                     raise ValueError("Timestamps are required")

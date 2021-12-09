@@ -136,7 +136,10 @@ namespace traji
     void Path::update_distance(TFloat s0)
     {
         if (_line.size() == 1) // Fix invalid line string (only 1 point)
+        {
             _line.clear();
+            return;
+        }
 
         TFloat s = s0;
         _distance.resize(_line.size());
