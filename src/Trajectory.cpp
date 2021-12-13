@@ -288,14 +288,14 @@ namespace traji
         vector<PathPosition> rhs_pos = PathPosition::from_t(lhs, rhs.timestamps());
         for (int i = 0; i < rhs_pos.size(); i++)
         {
-            TFloat dist = distance(lhs.point_at(rhs_pos[i]), rhs[i]);
+            TFloat dist = distance(lhs.point_at(rhs_pos[i]), rhs.vertices()[i]);
             min_dist = min(min_dist, dist);
         }
 
         vector<PathPosition> lhs_pos = PathPosition::from_t(rhs, lhs.timestamps());
         for (int i = 0; i < lhs_pos.size(); i++)
         {
-            TFloat dist = distance(rhs.point_at(lhs_pos[i]), lhs[i]);
+            TFloat dist = distance(rhs.point_at(lhs_pos[i]), lhs.vertices()[i]);
             min_dist = min(min_dist, dist);
         }
         return min_dist;
@@ -310,9 +310,9 @@ namespace std
             return string("[]");
 
         stringstream ss;
-        ss << '[' << to_string(value[0]) << " @ " << value.timestamps()[0];
+        ss << '[' << to_string(value.vertices()[0]) << " @ " << value.timestamps()[0];
         for (size_t i = 1; i < value.size(); i++)
-            ss << ", " << to_string(value[i]) << " @ " << value.timestamps()[i];
+            ss << ", " << to_string(value.vertices()[i]) << " @ " << value.timestamps()[i];
         ss << ']';
         return ss.str();
     }

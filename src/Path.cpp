@@ -21,7 +21,7 @@ namespace traji
     {
         auto segment_iter = upper_bound(path._distance.begin(), path._distance.end(), s);
         auto segment_idx = distance(path._distance.begin(), segment_iter) - 1;
-        segment_idx = min((long)path.size() - 2L, max(0L, segment_idx)); // clip the segment index
+        segment_idx = min((long)path.size() - 1L, max(0L, segment_idx)); // clip the segment index
 
         auto s0 = path._distance[segment_idx], s1 = path._distance[segment_idx+1];
 
@@ -58,7 +58,7 @@ namespace traji
                 result.push_back(PathPosition::from_s(path, s));
             else
             {
-                while (s > path._distance[cur_idx] && cur_idx < (path.size() - 1))
+                while (s > path._distance[cur_idx] && cur_idx < path.size())
                     cur_idx++;
 
                 auto s0 = path._distance[cur_idx-1], s1 = path._distance[cur_idx];
@@ -311,9 +311,9 @@ namespace traji
 
         auto feas_radius = calc_feasible_radius(smooth_radius);
         auto seglen = segment_lengths();
-        result._points.reserve(_line.size() * 2); // TODO: better estimate with correct Path::size()
-        result._segments.reserve(seglen.size());
-        result._distance.reserve(seglen.size());
+        result._points.reserve(_line.size() * 2);
+        result._segments.reserve(_line.size() * 2);
+        result._distance.reserve(_line.size() * 2);
 
         // add first segment
         result._points.push_back(_line[0]);
@@ -416,10 +416,10 @@ namespace traji
 
     bool operator==(const Path& lhs, const Path& rhs)
     {
-        if(lhs.data().size() != rhs.data().size())
+        if(lhs.size() != rhs.size())
             return false;
-        for(size_t i = 0; i < lhs.data().size(); i++)
-            if (lhs[i] != rhs[i])
+        for(size_t i = 0; i <= lhs.size(); i++)
+            if (lhs.vertices()[i] != rhs.vertices()[i])
                 return false;
         return true;
     }
@@ -440,9 +440,9 @@ namespace std
             return string("[]");
 
         stringstream ss;
-        ss << '[' << to_string(value[0]);
-        for (size_t i = 1; i < value.size(); i++)
-            ss << ", " << to_string(value[i]);
+        ss << '[' << to_string(value.vertices()[0]);
+        for (size_t i = 1; i <= value.size(); i++)
+            ss << ", " << to_string(value.vertices()[i]);
         ss << ']';
         return ss.str();
     }

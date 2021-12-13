@@ -48,7 +48,7 @@ def test_trajectory_interpolation():
         print(traj.acceleration_at(s))
 
 def test_ctratrajectory():
-    traj = traji.CTRATrajectory(5, (0, 0), 1, 1, 1, 1)
+    traj = traji.CTRATrajectory(5, traji.Point(0, 0), 1, 1, 1, 1)
     print(traj.point_at(1))
     
     assert traj.T == 5

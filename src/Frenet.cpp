@@ -33,8 +33,8 @@ Point to_cartesian(const Path &ref, const Point &point)
 
 Path from_cartesian(const Path &ref, const Path &path)
 {
-    vector<Point> frenet_points; frenet_points.reserve(path.size());
-    transform(path.data().begin(), path.data().end(),
+    vector<Point> frenet_points; frenet_points.reserve(path.size() + 1);
+    transform(path.vertices().begin(), path.vertices().end(),
         back_inserter(frenet_points),
         bind<Point(const Path&, const Point&)>(from_cartesian, ref, _1));
     return Path(move(frenet_points));
@@ -42,14 +42,14 @@ Path from_cartesian(const Path &ref, const Path &path)
 
 Path to_cartesian(const Path &ref, const Path &path)
 {
-    vector<TFloat> s_list; s_list.reserve(path.size());
-    transform(path.data().begin(), path.data().end(), back_inserter(s_list),
+    vector<TFloat> s_list; s_list.reserve(path.size() + 1);
+    transform(path.vertices().begin(), path.vertices().end(), back_inserter(s_list),
               [](const Point &p) { return p.get<0>(); });
 
     vector<PathPosition> pos_list = PathPosition::from_s(ref, s_list);
-    vector<Point> cartesian_points; cartesian_points.reserve(path.size());
-    for (size_t i = 0; i < path.size(); i++)
-        cartesian_points.push_back(to_cartesian_hint(ref, path.data()[i], pos_list[i]));
+    vector<Point> cartesian_points; cartesian_points.reserve(path.size() + 1);
+    for (size_t i = 0; i <= path.size(); i++)
+        cartesian_points.push_back(to_cartesian_hint(ref, path.vertices()[i], pos_list[i]));
     return Path(move(cartesian_points));
 }
 

@@ -10,8 +10,6 @@ namespace py = pybind11;
 using namespace traji;
 using namespace std;
 
-PYBIND11_MAKE_OPAQUE(std::vector<Point>);
-
 inline Point cast_point(py::object point)
 {
     if (py::hasattr(point, "x") && py::hasattr(point, "y"))
@@ -108,15 +106,11 @@ PYBIND11_MODULE(_bindings, m) {
         .def("__len__", [](const Path& p){ return p.size(); })
         .def("__str__", [](const Path& p){ return to_string(p); })
         .def("__repr__", [](const Path& p) {
-            stringstream ss; ss << "<Path with " << p.size() << " points>"; return ss.str();
+            stringstream ss; ss << "<Path with " << p.size() << " segments>"; return ss.str();
         })
         .def("__iter__", [](const Path& p) {
-            return py::make_iterator(p.data().begin(), p.data().end());
+            return py::make_iterator(p.vertices().begin(), p.vertices().end());
         }, py::keep_alive<0, 1>())
-        .def("__getitem__", [](const Path& p, size_t i){
-            if (i >= p.size()) throw py::index_error();
-            return p[i];
-        })
         .def(py::self == py::self)
         .def(py::self != py::self)
         .def_property_readonly("length", &Path::length)
@@ -125,7 +119,7 @@ PYBIND11_MODULE(_bindings, m) {
             return py::buffer_info(
                 static_cast<void*>(p.data().data()),
                 sizeof(TFloat), py::format_descriptor<TFloat>::format(),
-                2, {p.size(), size_t(2)}, {2 * sizeof(TFloat), sizeof(TFloat)}
+                2, {p.size() + 1, size_t(2)}, {2 * sizeof(TFloat), sizeof(TFloat)}
 #if PYBIND11_VERSION_MAJOR >= 2 && PYBIND11_VERSION_MAJOR >= 4 && PYBIND11_VERSION_MAJOR >= 4
                 , /* readonly = */ true
 #endif
@@ -159,12 +153,12 @@ PYBIND11_MODULE(_bindings, m) {
         })
         .def_property_readonly("timestamps", &Trajectory::timestamps)
         .def("numpy", [](const Trajectory& t) {
-            py::array_t<TFloat> result({t.size(), size_t(3)});
+            py::array_t<TFloat> result({t.size() + 1, size_t(3)});
             auto r = result.mutable_unchecked<2>();
-            for (size_t i = 0; i < t.size(); i++)
+            for (size_t i = 0; i <= t.size(); i++)
             {
-                r(i, 0) = t[i].get<0>();
-                r(i, 1) = t[i].get<1>();
+                r(i, 0) = t.vertices()[i].get<0>();
+                r(i, 1) = t.vertices()[i].get<1>();
                 r(i, 2) = t.timestamps()[i];
             }
             return result;

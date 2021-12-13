@@ -124,13 +124,12 @@ public:
     inline Path(const std::vector<Point> &l, TFloat s0 = 0): Path(l.begin(), l.end(), s0) {}
     inline Path(std::vector<Point> &&l, TFloat s0 = 0): Path(l.begin(), l.end(), s0) {}
 
-    // TODO: change size to the count of segments
-    // and change the usage of size in smooth() method
-    inline std::size_t size() const { return _line.size(); }
+    /// The size of a path is the number of segments
+    inline std::size_t size() const { return _line.empty() ? 0 : _line.size() - 1; }
     inline TFloat length() const { return _distance.back(); }
     inline std::vector<TFloat> segment_lengths() const
     {
-        std::vector<TFloat> lengths(_line.size() - 1);
+        std::vector<TFloat> lengths(size());
         for (int i = 1; i < _line.size(); i++)
             lengths[i-1] = _distance[i] - _distance[i-1];
         return lengths;
@@ -140,8 +139,9 @@ public:
     inline LineString& data() { return _line; }
     inline const LineString& data() const { return _line; }
 
-    Point& operator[](std::size_t idx) { return _line[idx]; }
-    const Point& operator[](std::size_t idx) const { return _line[idx]; }
+    /// Access vertices of the line string
+    inline std::vector<Point>& vertices() { return _line; }
+    inline const LineString& vertices() const { return _line; }
 
     /// Get the point indicated by the distance from the beginning
     inline Point point_from(TFloat s) const
@@ -336,9 +336,9 @@ protected:
 public:
     HeteroPath() {}
     inline HeteroPath(const Path& path) : _points(path._line), _distance(path._distance),
-        _segments(path._line.size()-1, HeteroSegment { SegmentType::Line, {} }) {}
+        _segments(path.size(), HeteroSegment { SegmentType::Line, {} }) {}
     inline HeteroPath(Path&& path) : _points(std::move(path._line)), _distance(std::move(path._distance)),
-        _segments(path._line.size()-1, HeteroSegment { SegmentType::Line, {} }) {}
+        _segments(path.size(), HeteroSegment { SegmentType::Line, {} }) {}
     inline HeteroPath(const std::vector<Point> &points, const std::vector<HeteroSegment> &segments, TFloat s0 = 0) :
         _points(points), _segments(segments) { update_distance(); }
 
@@ -352,7 +352,7 @@ public:
     /// size of each segment
     inline std::vector<TFloat> segment_lengths() const
     {
-        std::vector<TFloat> lengths(_points.size() - 1);
+        std::vector<TFloat> lengths(size());
         for (int i = 1; i < _points.size(); i++)
             lengths[i-1] = _distance[i] - _distance[i-1];
         return lengths;

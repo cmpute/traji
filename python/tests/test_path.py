@@ -53,7 +53,7 @@ def test_resample():
 
 def test_shapely_interop():
     point = traji.Point([1, 2])
-    shapely_point = sPoint(point)
+    shapely_point = sPoint(point.x, point.y)
     shapely_point = point.shapely()
     point2 = traji.Point(shapely_point)
     assert point == point2
