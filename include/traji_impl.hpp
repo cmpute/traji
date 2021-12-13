@@ -19,7 +19,7 @@ namespace traji
         /// Calculate the signed distance from point to the segment **line**
         /// @return (distance to line, fraction of the foot point)
         /// The distance is positive if the point is at left hand side of the direction of line (p0 -> p1)
-        pair<TFloat, TFloat> sdistance(const Point &p0, const Point &p1, const TFloat l, const Point &p)
+        inline pair<TFloat, TFloat> sdistance(const Point &p0, const Point &p1, const TFloat l, const Point &p)
         {
             auto x0 = p0.get<0>(), y0 = p0.get<1>();
             auto x1 = p1.get<0>(), y1 = p1.get<1>();
@@ -76,7 +76,7 @@ namespace traji
         }
 
         /// Solve the parameters of the smoothing arc between two adjacent segments
-        ArcParams solve_smooth(
+        inline ArcParams solve_smooth(
             const Point &p0, const Point &pivot, const Point &p1,
             TFloat l0, TFloat l1, TFloat smooth_radius)
         {

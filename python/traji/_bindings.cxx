@@ -39,7 +39,7 @@ PYBIND11_MODULE(_bindings, m) {
         .def(py::init(&cast_point))
         .def_property_readonly("x", [](const Point &p) { return p.get<0>(); })
         .def_property_readonly("y", [](const Point &p) { return p.get<1>(); })
-        .def("__str__", [](const Point &p) { return to_string(p); })
+        .def("__str__", py::overload_cast<const Point&>(&to_string))
         .def("__repr__", [](const Point &p) { 
             stringstream ss; ss << "<Point " << to_string(p) << ">"; return ss.str();
         })
@@ -62,7 +62,7 @@ PYBIND11_MODULE(_bindings, m) {
     py::class_<PathPosition>(m, "PathPosition")
         .def(py::init<size_t, size_t, TFloat>(), py::arg("component"), py::arg("segment"), py::arg("fraction"))
         .def(py::init<size_t, TFloat>(), py::arg("segment"), py::arg("fraction"))
-        .def("__str__", [](const PathPosition &pos) { return to_string(pos); })
+        .def("__str__", py::overload_cast<const PathPosition&>(to_string))
         .def("__repr__", [](const PathPosition &pos) { 
             stringstream ss; ss << "<PathPosition ";
             ss << pos.component << ", ";
@@ -80,9 +80,9 @@ PYBIND11_MODULE(_bindings, m) {
         .def_readwrite("segment", &PathPosition::segment)
         .def_readwrite("fraction", &PathPosition::fraction)
         .def("to_s", py::overload_cast<const Path&>(&PathPosition::to_s))
-        // .def("to_s", static_cast<TFloat (PathPosition::*)(const HeteroPath&)>(&PathPosition::to_s))
+        .def("to_s", py::overload_cast<const HeteroPath&>(&PathPosition::to_s))
         .def_static("from_s", py::overload_cast<const Path&, TFloat>(PathPosition::from_s))
-        // .def_static("from_s", static_cast<PathPosition (*)(const HeteroPath&, TFloat)>(PathPosition::from_s))
+        .def_static("from_s", py::overload_cast<const HeteroPath&, TFloat>(PathPosition::from_s))
         .def_static("from_s", py::overload_cast<const Path&, const vector<TFloat>&>(PathPosition::from_s))
         .def("to_t", &PathPosition::to_t)
         .def_static("from_t", py::overload_cast<const Trajectory&, TFloat>(PathPosition::from_t))
@@ -103,8 +103,8 @@ PYBIND11_MODULE(_bindings, m) {
                 clist.push_back(cast_point(p));
             return make_unique<Path>(move(clist));
         }))
-        .def("__len__", [](const Path& p){ return p.size(); })
-        .def("__str__", [](const Path& p){ return to_string(p); })
+        .def("__len__", &Path::size)
+        .def("__str__", py::overload_cast<const Path&>(&to_string))
         .def("__repr__", [](const Path& p) {
             stringstream ss; ss << "<Path with " << p.size() << " segments>"; return ss.str();
         })
@@ -113,6 +113,7 @@ PYBIND11_MODULE(_bindings, m) {
         }, py::keep_alive<0, 1>())
         .def(py::self == py::self)
         .def(py::self != py::self)
+        .def_property_readonly("vertices", py::overload_cast<>(&Path::vertices, py::const_))
         .def_property_readonly("length", &Path::length)
         .def_property_readonly("segment_lengths", &Path::segment_lengths)
         .def_buffer([](Path& p) {
@@ -147,7 +148,7 @@ PYBIND11_MODULE(_bindings, m) {
     py::class_<Trajectory, Path>(m, "Trajectory")
         .def(py::init<>())
         .def(py::init<const Path&, const vector<TFloat>&>())
-        .def("__str__", [](const Trajectory& t){ return to_string(t); })
+        .def("__str__", py::overload_cast<const Trajectory&>(&to_string))
         .def("__repr__", [](const Trajectory& t) {
             stringstream ss; ss << "<Trajectory with " << t.size() << " points>"; return ss.str();
         })
@@ -180,7 +181,7 @@ PYBIND11_MODULE(_bindings, m) {
         .def(py::init<TFloat, const Vector6&, const Vector6&>(), py::arg("T"), py::arg("x_coeffs"), py::arg("y_coeffs"))
         .def(py::init<TFloat, const Vector3&, const Vector3&, const Vector3&, const Vector3&>(),
             py::arg("T"), py::arg("x0"), py::arg("xT"), py::arg("y0"), py::arg("yT"))
-        .def("__str__", [](const QuinticPolyTrajectory& t){ return to_string(t); })
+        .def("__str__", py::overload_cast<const QuinticPolyTrajectory&>(&to_string))
         .def("__repr__", [](const QuinticPolyTrajectory& t) {
             stringstream ss; ss << "<QuinticPolyTrajectory with T=" << t.T() << "s>"; return ss.str();
         })
@@ -203,11 +204,31 @@ PYBIND11_MODULE(_bindings, m) {
         .def("point_at", &CTRATrajectory::point_at)
         .def("tangent_at", &CTRATrajectory::tangent_at)
         .def("velocity_at", &CTRATrajectory::velocity_at)
-        // .def("acceleration_at", &QuinticPolyTrajectory::acceleration_at)
+        // .def("acceleration_at", &CTRATrajectory::acceleration_at)
         .def("periodize", &CTRATrajectory::periodize)
         ;
 
+    py::class_<HeteroSegment>(m, "HeteroSegment")
+        .def(py::init<SegmentType, const vector<TFloat>&>())
+        .def_readwrite("type", &HeteroSegment::type)
+        .def_readwrite("params", &HeteroSegment::params)
+        ;
+
     py::class_<HeteroPath>(m, "HeteroPath")
+        .def(py::init<>())
+        .def(py::init<const Path&>())
+        .def(py::init<const vector<Point>&, const vector<HeteroSegment>&, TFloat>(),
+            py::arg("points"), py::arg("segments"), py::arg("s0") = 0)
+        .def("__len__", &HeteroPath::size)
+        .def_property_readonly("vertices", py::overload_cast<>(&HeteroPath::vertices, py::const_))
+        .def_property_readonly("length", &HeteroPath::length)
+        .def_property_readonly("segment_lengths", &HeteroPath::segment_lengths)
+        .def("point_from", &HeteroPath::point_from)
+        .def("point_at", &HeteroPath::point_at)
+        .def("tangent_from", &HeteroPath::tangent_from)
+        .def("tangent_at", &HeteroPath::tangent_at)
+        .def("rasterize", &HeteroPath::rasterize, py::arg("resolution") = 0)
+        // .def("densify", &HeteroPath::densify)
         ;
 
     m.def("frenet_from_cartesian", py::overload_cast<const Path&, const Trajectory&>(frenet::from_cartesian));

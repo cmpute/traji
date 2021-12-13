@@ -139,7 +139,7 @@ public:
     inline LineString& data() { return _line; }
     inline const LineString& data() const { return _line; }
 
-    /// Access vertices of the line string
+    /// Access vertices of the path
     inline std::vector<Point>& vertices() { return _line; }
     inline const LineString& vertices() const { return _line; }
 
@@ -344,6 +344,10 @@ public:
 
     friend class PathPosition;
     friend class Path;
+
+    /// Access vertices of the path
+    inline std::vector<Point>& vertices() { return _points; }
+    inline const std::vector<Point>& vertices() const { return _points; }
 
     /// number of segments
     inline std::size_t size() const { return _segments.size(); }
