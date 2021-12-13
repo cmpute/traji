@@ -400,31 +400,36 @@ namespace traji
     HeteroPath Path::smooth(TFloat smooth_radius, SegmentType segtype) const
     {
         HeteroPath result;
+
+        // shortcuts
         if (_line.size() == 0)
             return result;
         if (_line.size() == 2)
         {
+            result._points = { _line[0], _line[1] };
             result._segments.emplace_back(HeteroSegment {
-                SegmentType::Line, _line[0], _line[1], std::vector<TFloat>()
+                SegmentType::Line, std::vector<TFloat>()
             });
-            result._distance = {_distance[1]};
+            result._distance = { _distance[0], _distance[1] };
             return result;
         }
 
         auto feas_radius = calc_feasible_radius(smooth_radius);
         auto seglen = segment_lengths();
+        result._points.reserve(_line.size() * 2); // TODO: better estimate with correct Path::size()
         result._segments.reserve(seglen.size());
         result._distance.reserve(seglen.size());
 
         // add first segment
-        auto last_point = segment::interpolate(
+        result._points.push_back(_line[0]);
+        result._points.emplace_back(segment::interpolate(
             _line[0], _line[1],
             1 - feas_radius[0] / seglen[0]
-        );
+        ));
         result._segments.emplace_back(HeteroSegment {
-            SegmentType::Line, _line.front(), last_point, std::vector<TFloat>()
+            SegmentType::Line, std::vector<TFloat>()
         });
-        result._distance.push_back(seglen.front() - feas_radius.front());
+        result._distance.emplace_back(seglen.front() - feas_radius.front());
 
         // loop over the intermediate segments
         for (size_t i = 0; i < seglen.size() - 1; i++)
@@ -432,33 +437,27 @@ namespace traji
             // add i-th segment
             if (i > 0)
             {
-                auto new_point = segment::interpolate(
+                result._points.emplace_back(segment::interpolate(
                     _line[i], _line[i+1],
                     1 - feas_radius[i] / seglen[i]
-                );
-                result._segments.emplace_back(HeteroSegment {
-                    SegmentType::Line, last_point, new_point,
-                    std::vector<TFloat>()
-                });
-                result._distance.push_back(result._distance.back() +
+                ));
+                result._segments.emplace_back(HeteroSegment { SegmentType::Line, {} });
+                result._distance.emplace_back(result._distance.back() +
                     seglen[i] - feas_radius[i-1] - feas_radius[i]);
-                last_point = new_point;
             }
 
             // add i-th curve
-            auto new_point = segment::interpolate(
+            result._points.emplace_back(segment::interpolate(
                 _line[i+1], _line[i+2],
                 feas_radius[i] / seglen[i+1]
-            );
+            ));
             switch (segtype)
             {
                 case SegmentType::Line:
                 {
-                    result._segments.emplace_back(HeteroSegment {
-                        SegmentType::Line, last_point, new_point,
-                        std::vector<TFloat> {}
-                    });
-                    result._distance.push_back(distance(last_point, new_point));
+                    result._segments.emplace_back(HeteroSegment { SegmentType::Line, {} });
+                    result._distance.emplace_back(distance(
+                        result._points.rbegin()[1], result._points.rbegin()[0]));
                     break;
                 }
                 case SegmentType::Arc:
@@ -470,24 +469,23 @@ namespace traji
                     auto arc_len = abs(arc_params.angle * arc_params.radius);
 
                     result._segments.emplace_back(HeteroSegment {
-                        SegmentType::Arc, last_point, new_point,
-                        std::vector<TFloat> {arc_params.center.get<0>(), arc_params.center.get<1>()}
+                        SegmentType::Arc,
+                        { arc_params.center.get<0>(), arc_params.center.get<1>() }
                     });
-                    result._distance.push_back(result._distance.back() + arc_len);
+                    result._distance.emplace_back(result._distance.back() + arc_len);
                     break;
                 }
                 default:
                     throw std::runtime_error("Unsupported segment type!");
             }
-            last_point = new_point;
         }
 
         // add last segment
+        result._points.push_back(_line.back());
         result._segments.emplace_back(HeteroSegment {
-            SegmentType::Line, last_point, _line.back(),
-            std::vector<TFloat>()
+            SegmentType::Line, std::vector<TFloat>()
         });
-        result._distance.push_back(seglen.back() - feas_radius.back());
+        result._distance.emplace_back(seglen.back() - feas_radius.back());
 
         return result;
     }

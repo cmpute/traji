@@ -66,6 +66,7 @@ enum class SegmentType
 /// When the position is on the path, 0 <= segment < #segments, 0 <= fraction < 1
 /// When the position is on the extended last segment, segment = #segments - 1, fraction >= 1
 /// When the position is on the extended first segment, segment = 0, fraction < 0
+// TODO: implement comparison operators
 struct PathPosition
 {
     std::size_t component; // index in multi-path collection
@@ -98,7 +99,7 @@ class Path
 protected:
     LineString _line; // the geometry of the line string
     std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line.
-                                   // first value is always zero.
+                                   // first value is zero by default, but can be assigned.
 
     /// Update _distance values
     void update_distance(TFloat s0 = 0);
@@ -122,6 +123,8 @@ public:
     inline Path(const std::vector<Point> &l, TFloat s0 = 0): Path(l.begin(), l.end(), s0) {}
     inline Path(std::vector<Point> &&l, TFloat s0 = 0): Path(l.begin(), l.end(), s0) {}
 
+    // TODO: change size to the count of segments
+    // and change the usage of size in smooth() method
     inline std::size_t size() const { return _line.size(); }
     inline TFloat length() const { return _distance.back(); }
     inline std::vector<TFloat> segment_lengths() const
@@ -164,7 +167,7 @@ public:
     /// @return (distance to the path, projection point position)
     std::pair<TFloat, PathPosition> project(const Point &point) const;
 
-    /// Return the path in a form with equally space points (interpolating over S)
+    /// Return the path in a form with equally space points (interpolating over s)
     /// The starting and end point of the original line string is guaranteed to be included and not smoothed
     /// @param smooth_radius The distance from original vertex to the new smoothed vertex.
     Path respacing(TFloat resolution, TFloat smooth_radius = 0) const;
@@ -308,34 +311,60 @@ public:
 
 struct HeteroSegment
 {
+    /// Type of the segment
     SegmentType type;
-    Point start, end;
 
     /// Params for the segments, see SegmentType for details
     std::vector<TFloat> params;
 
-    Point point_at(TFloat fraction);
-    TFloat tangent_at(TFloat fraction);
+    TFloat length (const Point &start, const Point &end) const;
+    Point point_at (const Point &start, const Point &end, TFloat fraction) const;
+    TFloat tangent_at (const Point &start, const Point &end, TFloat fraction) const;
 };
 
 class HeteroPath
 {
 protected:
+    std::vector<Point> _points;
     std::vector<HeteroSegment> _segments;
-    std::vector<TFloat> _distance; // distance to the end of the segment
+    std::vector<TFloat> _distance; // same as Path::_distance
 
 public:
     HeteroPath() {}
     HeteroPath(const Path& path);
+    HeteroPath(const std::vector<Point> &points, const std::vector<HeteroSegment> &segments);
 
     friend class Path;
 
-    /// Convert to Path by rasterizing each segments
-    Path rasterize(TFloat resolution);
-    /// Convert to Path by only rasterizing curves (excl. line segment)
-    Path rasterize_curve(TFloat resolution);
+    /// number of segments
+    inline std::size_t size() const { return _segments.size(); }
+    /// total length of the hetero path
+    inline TFloat length() const { return _distance.back(); }
+    /// size of each segment
+    inline std::vector<TFloat> segment_lengths() const
+    {
+        std::vector<TFloat> lengths(_points.size() - 1);
+        for (int i = 1; i < _points.size(); i++)
+            lengths[i-1] = _distance[i] - _distance[i-1];
+        return lengths;
+    }
 
-    Path respacing(TFloat resolution) const;
+    Point point_from(TFloat s)
+    {
+        return point_at(PathPosition::from_s(*this, s));
+    }
+    Point point_at(const PathPosition &pos);
+    TFloat tangent_at(TFloat s)
+    {
+        return tangent_at(PathPosition::from_s(*this, s));
+    }
+    TFloat tangent_at(const PathPosition &pos);
+
+    /// Convert to Path by only rasterizing curves (excl. line segment)
+    /// If resolution <= 0, then the result will be directly generated from vertices
+    Path rasterize(TFloat resolution = 0) const;
+
+    /// Return the path with each segment's length less than the given resolution
     HeteroPath densify(TFloat resolution) const;
 };
 
@@ -374,15 +403,25 @@ inline PathPosition arg_distance(const Path &lhs, const Point &rhs) { return lhs
 TFloat tdistance(const Trajectory &lhs, const Trajectory &rhs);
 
 std::vector<Point> intersection(const Path &lhs, const Path &rhs);
+// TODO: make the intersection result sorted?
 std::vector<std::pair<PathPosition, PathPosition>> arg_intersection(const Path &lhs, const Path &rhs);
 
 // ==================================== standard functions ====================================
 
 inline bool operator==(const PathPosition& lhs, const PathPosition& rhs)
 {
-    return lhs.component == rhs.component && lhs.segment == rhs.segment && lhs.fraction == rhs.fraction;
+    return std::tie(lhs.component, lhs.segment, lhs.fraction)
+        == std::tie(rhs.component, rhs.segment, rhs.fraction);
 }
 inline bool operator!=(const PathPosition& lhs, const PathPosition& rhs) { return !(lhs == rhs); }
+inline bool operator< (const PathPosition& lhs, const PathPosition& rhs)
+{
+    return std::tie(lhs.component, lhs.segment, lhs.fraction)
+        < std::tie(rhs.component, rhs.segment, rhs.fraction);
+}
+inline bool operator> (const PathPosition& lhs, const PathPosition& rhs) { return rhs < lhs; }
+inline bool operator<=(const PathPosition& lhs, const PathPosition& rhs) { return !(lhs > rhs); }
+inline bool operator>=(const PathPosition& lhs, const PathPosition& rhs) { return !(lhs < rhs); }
 
 bool operator==(const Path& lhs, const Path& rhs);
 inline bool operator!=(const Path& lhs, const Path& rhs) { return !(lhs == rhs); }
