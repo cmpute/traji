@@ -1,4 +1,6 @@
+#include <stdexcept>
 #include "traji.hpp"
+#include "traji_impl.hpp"
 
 namespace traji
 {
@@ -7,11 +9,15 @@ namespace traji
         switch (type)
         {
             case SegmentType::Arc:
+            {
+                Point center = Point(params[0], params[1]);
+                TFloat radius = distance(center, start);
                 break;
+            }
             case SegmentType::Line:
-                break;
+                return distance(start, end);
             default:
-                throw;
+                throw invalid_argument("segment type");
         }
     }
 
@@ -24,18 +30,18 @@ namespace traji
             case SegmentType::Line:
                 break;
             default:
-                throw;
+                throw invalid_argument("segment type");
         }
     }
 
-    Point HeteroSegment::tangent_at (const Point &start, const Point &end, TFloat fraction) const
+    TFloat HeteroSegment::tangent_at (const Point &start, const Point &end, TFloat fraction) const
     {
         switch (type)
         {
             case SegmentType::Arc:
                 break;
             case SegmentType::Line:
-                break;
+                return line::tangent(start, end);
             default:
                 throw;
         }

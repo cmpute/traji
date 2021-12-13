@@ -115,6 +115,7 @@ public:
     friend class PathPosition;
     friend class QuinticPolyTrajectory;
     friend class CTRATrajectory;
+    friend class HeteroPath;
 
     inline Path() {}
     template<typename Iterator>
@@ -329,11 +330,19 @@ protected:
     std::vector<HeteroSegment> _segments;
     std::vector<TFloat> _distance; // same as Path::_distance
 
+    /// Update _distance values
+    void update_distance(TFloat s0 = 0);
+
 public:
     HeteroPath() {}
-    HeteroPath(const Path& path);
-    HeteroPath(const std::vector<Point> &points, const std::vector<HeteroSegment> &segments);
+    inline HeteroPath(const Path& path) : _points(path._line), _distance(path._distance),
+        _segments(path._line.size()-1, HeteroSegment { SegmentType::Line, {} }) {}
+    inline HeteroPath(Path&& path) : _points(std::move(path._line)), _distance(std::move(path._distance)),
+        _segments(path._line.size()-1, HeteroSegment { SegmentType::Line, {} }) {}
+    inline HeteroPath(const std::vector<Point> &points, const std::vector<HeteroSegment> &segments, TFloat s0 = 0) :
+        _points(points), _segments(segments) { update_distance(); }
 
+    friend class PathPosition;
     friend class Path;
 
     /// number of segments
@@ -354,7 +363,7 @@ public:
         return point_at(PathPosition::from_s(*this, s));
     }
     Point point_at(const PathPosition &pos);
-    TFloat tangent_at(TFloat s)
+    TFloat tangent_from(TFloat s)
     {
         return tangent_at(PathPosition::from_s(*this, s));
     }

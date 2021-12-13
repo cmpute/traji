@@ -6,10 +6,12 @@ set(CMAKE_CXX_STANDARD 14)
 find_package(Boost REQUIRED COMPONENTS)
 find_package(Eigen3 3.3 REQUIRED)
 
-add_library(traji src/Path.cpp src/Frenet.cpp src/Trajectory.cpp)
-# target_include_directories(
-#   traji PUBLIC ${Boost_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS}
-# )
+add_library(traji
+  src/Path.cpp
+  src/Frenet.cpp
+  src/Trajectory.cpp
+  src/HeteroPath.cpp
+)
 set_target_properties(traji PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(traji PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
