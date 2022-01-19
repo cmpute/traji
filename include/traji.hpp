@@ -409,7 +409,7 @@ namespace frenet
 // ==================================== binary functions ====================================
 
 inline TFloat distance(const Point &lhs, const Point &rhs) { return boost::geometry::distance(lhs, rhs); }
-inline TFloat distance(const Path &lhs, const Point &rhs) { return lhs.project(rhs).first; }
+inline TFloat distance(const Path &lhs, const Point &rhs) { return std::abs(lhs.project(rhs).first); }
 inline PathPosition arg_distance(const Path &lhs, const Point &rhs) { return lhs.project(rhs).second; }
 
 /// Return the closest distance at the same time point between two trajectories

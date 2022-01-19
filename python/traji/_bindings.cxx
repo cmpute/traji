@@ -91,6 +91,7 @@ PYBIND11_MODULE(_bindings, m) {
 
     py::class_<Path>(m, "Path", py::buffer_protocol())
         .def(py::init<>())
+        .def(py::init<const Path&>())
         .def(py::init<const vector<Point>&>())
         .def(py::init<const vector<Point>&, TFloat>())
         .def(py::init([](py::object points) {
@@ -147,6 +148,7 @@ PYBIND11_MODULE(_bindings, m) {
 
     py::class_<Trajectory, Path>(m, "Trajectory")
         .def(py::init<>())
+        .def(py::init<const Trajectory&>())
         .def(py::init<const Path&, const vector<TFloat>&>())
         .def("__str__", py::overload_cast<const Trajectory&>(&to_string))
         .def("__repr__", [](const Trajectory& t) {
@@ -216,6 +218,7 @@ PYBIND11_MODULE(_bindings, m) {
 
     py::class_<HeteroPath>(m, "HeteroPath")
         .def(py::init<>())
+        .def(py::init<const HeteroPath&>())
         .def(py::init<const Path&>())
         .def(py::init<const vector<Point>&, const vector<HeteroSegment>&, TFloat>(),
             py::arg("points"), py::arg("segments"), py::arg("s0") = 0)
