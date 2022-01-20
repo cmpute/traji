@@ -130,7 +130,7 @@ namespace traji
 
     QuinticPolyTrajectory::QuinticPolyTrajectory(
         TFloat T, const Vector3 &x0, const Vector3 &xT,
-        const Vector3 &y0, const Vector3 &yT
+        const Vector3 &y0, const Vector3 &yT, bool relax_sx
     ) : _x_coeffs(), _y_coeffs(), _T(T)
     {
         assert (T > 0);
@@ -148,11 +148,19 @@ namespace traji
               6*T, 12*T*T, 20*T3;
         Matrix3 M2inv = M2.inverse();
 
-        auto c345x = M2inv * (xT - M1 * c012x);
         auto c345y = M2inv * (yT - M1 * c012y);
-
-        _x_coeffs << c345x(2), c345x(1), c345x(0), c012x(2), c012x(1), c012x(0);
         _y_coeffs << c345y(2), c345y(1), c345y(0), c012y(2), c012y(1), c012y(0);
+
+        if (relax_sx)
+        {
+            auto c34x = M2.block(1,0,2,2).inverse() * (xT.tail(2) - M1.block(1,1,2,2) * c012x.tail(2));
+            _x_coeffs << 0, c34x(1), c34x(0), c012x(2), c012x(1), c012x(0);
+        }
+        else
+        {
+            auto c345x = M2inv * (xT - M1 * c012x);
+            _x_coeffs << c345x(2), c345x(1), c345x(0), c012x(2), c012x(1), c012x(0);
+        }
     }
 
     Point QuinticPolyTrajectory::point_at(TFloat t) const

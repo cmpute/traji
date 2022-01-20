@@ -181,8 +181,8 @@ PYBIND11_MODULE(_bindings, m) {
 
     py::class_<QuinticPolyTrajectory>(m, "QuinticPolyTrajectory")
         .def(py::init<TFloat, const Vector6&, const Vector6&>(), py::arg("T"), py::arg("x_coeffs"), py::arg("y_coeffs"))
-        .def(py::init<TFloat, const Vector3&, const Vector3&, const Vector3&, const Vector3&>(),
-            py::arg("T"), py::arg("x0"), py::arg("xT"), py::arg("y0"), py::arg("yT"))
+        .def(py::init<TFloat, const Vector3&, const Vector3&, const Vector3&, const Vector3&, bool>(),
+            py::arg("T"), py::arg("x0"), py::arg("xT"), py::arg("y0"), py::arg("yT"), py::arg("relax_sx") = false)
         .def("__str__", py::overload_cast<const QuinticPolyTrajectory&>(&to_string))
         .def("__repr__", [](const QuinticPolyTrajectory& t) {
             stringstream ss; ss << "<QuinticPolyTrajectory with T=" << t.T() << "s>"; return ss.str();

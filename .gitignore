@@ -33,3 +33,6 @@
 
 # Build Directory
 build/
+
+# Jupyter notebook
+examples/.ipynb_checkpoints/

@@ -13,6 +13,7 @@ namespace traji {
 typedef float TFloat;
 typedef Eigen::Matrix<TFloat, 2, 1> Vector2;
 typedef Eigen::Matrix<TFloat, 3, 1> Vector3;
+typedef Eigen::Matrix<TFloat, 2, 2> Matrix2;
 typedef Eigen::Matrix<TFloat, 3, 3> Matrix3;
 typedef Eigen::Matrix<TFloat, 6, 1> Vector6;
 typedef Eigen::Matrix<TFloat, -1, 1> VectorX;
@@ -252,6 +253,9 @@ public:
 
 // ==================================== Parametric paths ====================================
 
+/// This class represents an optimal trajectory determined by planning horizon T, starting states (s, v, a)
+/// and end states at T. It's represented by a quintic polynomial. Optionally the final position on the x
+/// direction can by relaxed by specify `relax_sx` on construction, then the optiimal trajectory is a quartic polynomial.
 class QuinticPolyTrajectory
 {
 protected:
@@ -263,8 +267,9 @@ public:
         : _x_coeffs(x_coeffs), _y_coeffs(y_coeffs), _T(T) {}
 
     /// Solve optimal trajectory based on x and y states (including 1st and 2nd state derivatives)
-    QuinticPolyTrajectory(TFloat T, const Vector3 &x0, const Vector3 &xT,
-                          const Vector3 &y0, const Vector3 &yT);
+    QuinticPolyTrajectory(TFloat T,
+                          const Vector3 &x0, const Vector3 &xT,
+                          const Vector3 &y0, const Vector3 &yT, bool relax_sx);
 
     inline const Vector6& x_coeffs() const { return _x_coeffs; }
     inline const Vector6& y_coeffs() const { return _y_coeffs; }
