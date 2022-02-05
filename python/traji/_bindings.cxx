@@ -245,8 +245,7 @@ PYBIND11_MODULE(_bindings, m) {
     m_frenet.def("to_cartesian", py::overload_cast<const Path&, const Point&>(frenet::to_cartesian));
     m_frenet.def("from_cartesian", py::overload_cast<const Path&, const Path&>(frenet::from_cartesian));
     m_frenet.def("to_cartesian", py::overload_cast<const Path&, const Path&>(frenet::to_cartesian));
-    m_frenet.def("to_cartesian_fixing_position", &frenet::to_cartesian_fixing_position,
-            py::arg("ref"), py::arg("traj"), py::arg("scale") = 1.);
+    m_frenet.def("to_cartesian_rescale", &frenet::to_cartesian_rescale);
 
     m.def("distance", py::overload_cast<const Point&, const Point&>(traji::distance));
     m.def("distance", py::overload_cast<const Path&, const Point&>(traji::distance));

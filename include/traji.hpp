@@ -428,7 +428,7 @@ namespace frenet
 
     // Convert the trajectory to cartesian coordinate and adjust vertices position to
     // accomodate curvature change
-    Trajectory to_cartesian_fixing_position(const Path &ref, const Trajectory &traj, TFloat scale = 1.);
+    Trajectory to_cartesian_rescale(const Path &ref, const Trajectory &traj);
 }
 
 // ==================================== binary functions ====================================

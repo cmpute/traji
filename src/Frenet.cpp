@@ -2,6 +2,7 @@
 #include <numeric>
 #include <cmath>
 #include "traji.hpp"
+#include <iostream>
 
 using namespace std;
 using namespace std::placeholders;
@@ -54,7 +55,7 @@ Path to_cartesian(const Path &ref, const Path &path)
     return Path(move(cartesian_points));
 }
 
-Trajectory to_cartesian_fixing_position(const Path &ref, const Trajectory &traj, TFloat scale)
+Trajectory to_cartesian_rescale(const Path &ref, const Trajectory &traj)
 {
     // Calculate the original path without resampling
     vector<TFloat> s_list; s_list.reserve(traj.size() + 1);
@@ -65,31 +66,21 @@ Trajectory to_cartesian_fixing_position(const Path &ref, const Trajectory &traj,
     vector<Point> cartesian_points; cartesian_points.reserve(traj.size() + 1);
     for (size_t i = 0; i <= traj.size(); i++)
         cartesian_points.push_back(to_cartesian_hint(ref, traj.vertices()[i], pos_list[i]));
-    auto original_path = Path(move(cartesian_points));
+    auto skewed_path = Path(move(cartesian_points));
 
-    // Adjust segment lengths by curv_arr
-    ArrayX n_list(traj.size() + 1);
-    for (size_t i = 0; i <= traj.size(); i++)
-        n_list(i) = traj.vertices()[i].get<1>();
-
+    // Adjust segment lengths to be proportional to the original trajectory
     auto seglen = traj.segment_lengths();
     auto segcount = seglen.size();
-    ArrayX curv_arr(segcount);
-    for (size_t i = 0; i <= traj.size(); i++)
-        curv_arr[i] = ref.curvature_at(pos_list[i]);
-
-    auto seglen_arr = ArrayX::Map(&seglen[0], segcount);
-    auto scale_factor = (1 - n_list * curv_arr) * scale;
-    auto scale_normed = scale_factor / scale_factor.sum();
+    auto scale = skewed_path.length() / traj.length();
     vector<TFloat> scaled_seglen; scaled_seglen.reserve(segcount+1);
     scaled_seglen.push_back(0); // this is s0 for the new path
     for (size_t i = 0; i < segcount; i++)
-        scaled_seglen.push_back(seglen_arr[i] / scale_normed[i]);
+        scaled_seglen.push_back(seglen[i] * scale);
+
+    // Calculate new points
     vector<TFloat> new_s_list(segcount+1);
     partial_sum(scaled_seglen.begin(), scaled_seglen.end(), new_s_list.begin(), plus<TFloat>());
-    
-    // Calculate new points
-    return Trajectory(original_path.resample_from(new_s_list), traj.timestamps());
+    return Trajectory(skewed_path.resample_from(new_s_list), traj.timestamps());
 }
 
 } // namespace frenet    
