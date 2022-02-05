@@ -80,8 +80,8 @@ struct PathPosition
         : component(0), segment(segment_), fraction(fraction_) {}
 
     /// Convert the position to the distance to the beginning
-    TFloat to_s(const Path &path);
-    TFloat to_s(const HeteroPath &path);
+    TFloat to_s(const Path &path) const;
+    TFloat to_s(const HeteroPath &path) const;
 
     /// Convert the distance to the beginning to s
     static PathPosition from_s(const Path &path, TFloat s);
@@ -89,9 +89,14 @@ struct PathPosition
     static std::vector<PathPosition> from_s(const Path &path, const std::vector<TFloat> &s_list);
 
     /// Convert the position to the distance to the timestamp
-    TFloat to_t(const Trajectory &traj);
+    TFloat to_t(const Trajectory &traj) const;
     static PathPosition from_t(const Trajectory &traj, TFloat t);
     static std::vector<PathPosition> from_t(const Trajectory &path, const std::vector<TFloat> &t_list);
+
+    /// Move the position forward along the path. Note that this function is only efficient
+    /// when the distance is not too large. Otherwise please use to_s() and from_s()
+    PathPosition forward(const Path &path, TFloat s) const;
+    PathPosition backward(const Path &path, TFloat s) const;
 };
 
 /// (immutable) non-parametric linestring
@@ -111,6 +116,7 @@ protected:
 private:
     /// respacing with smooth_radius = 0
     Path respacing0(TFloat resolution) const;
+    TFloat solve_curvature(size_t segment_idx) const;
 
 public:
     friend class PathPosition;
@@ -157,6 +163,14 @@ public:
         return tangent_at(PathPosition::from_s(*this, s));
     }
     TFloat tangent_at(const PathPosition &pos) const;
+
+    /// Get the curvature at given position. The curvature is precise on the vertices, and
+    /// interpolated on segments.
+    inline TFloat curvature_from(TFloat s) const
+    {
+        return curvature_at(PathPosition::from_s(*this, s));
+    }
+    TFloat curvature_at(const PathPosition &pos) const;
 
     /// Get the value interpolated by the distance from the beginning
     inline TFloat interpolate_from(const std::vector<TFloat> &values, TFloat s) const

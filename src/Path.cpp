@@ -12,7 +12,7 @@ namespace bg = boost::geometry;
 
 namespace traji
 {
-    TFloat PathPosition::to_s(const Path &path)
+    TFloat PathPosition::to_s(const Path &path) const
     {
         return path._distance[segment] + (path._distance[segment+1] - path._distance[segment]) * fraction;
     }
@@ -26,6 +26,34 @@ namespace traji
         auto s0 = path._distance[segment_idx], s1 = path._distance[segment_idx+1];
 
         return PathPosition(segment_idx, (s - s0) / (s1 - s0));
+    }
+
+    PathPosition PathPosition::forward(const Path &path, TFloat s) const
+    {
+        if (s < 0) { return backward(path, -s); }
+
+        auto current_s = to_s(path);
+        auto target_s = current_s + s;
+        int i = segment;
+        for (; i < path.size(); i++)
+            if (path._distance[i] > target_s) { break; }
+
+        auto s0 = path._distance[i-1], s1 = path._distance[i];
+        return PathPosition(i-1, (target_s - s0) / (s1 - s0));
+    }
+
+    PathPosition PathPosition::backward(const Path &path, TFloat s) const
+    {
+        if (s < 0) { return forward(path, -s); }
+
+        auto current_s = to_s(path);
+        auto target_s = current_s - s;
+        int i = segment;
+        for (; i > 0; i--)
+            if (path._distance[i] < target_s) { break; }
+
+        auto s0 = path._distance[i], s1 = path._distance[i+1];
+        return PathPosition(i, (target_s - s0) / (s1 - s0));
     }
 
     void Path::update_distance(TFloat s0)
@@ -83,6 +111,50 @@ namespace traji
         return line::tangent(
             _line[pos.segment], _line[pos.segment+1]
         );
+    }
+
+    TFloat Path::solve_curvature(size_t point_idx) const
+    {
+        assert (point_idx >= 1 && point_idx <= _line.size() - 2);
+
+        auto p = _line[point_idx];
+        auto p0 = _line[point_idx-1];
+        auto p1 = _line[point_idx+1]; 
+
+        auto x = p.get<0>(), y = p.get<1>();
+        auto x0 = p0.get<0>(), y0 = p0.get<1>();
+        auto x1 = p1.get<0>(), y1 = p1.get<1>();
+
+        auto dx_n = x1 - x; auto dy_n = y1 - y; // next segment
+        auto dx_p = x - x0; auto dy_p = y - y0; // previous segment
+        auto dx_np = x1 - x0; auto dy_np = y1 - y0; // cross segment
+
+        auto ln = hypot(dx_n, dy_n);
+        auto lp = hypot(dx_p, dy_p);
+        auto lnp = hypot(dx_np, dy_np);
+
+        // use menger curvature
+        // K = 2*((x2-x1)*(y3-y2)-(y2-y1)*(x3-x2)) / sqrt(
+        //         ((x2-x1)^2+(y2-y1)^2)*((x3-x2)^2+(y3-y2)^2)*((x1-x3)^2+(y1-y3)^2))
+        return 2*(dx_p*dy_n - dy_p*dx_n) / (ln * lp * lnp);
+    }
+
+    TFloat Path::curvature_at(const PathPosition &pos) const
+    {
+        TFloat curv_next, curv_prev;
+        if (pos.segment == 0) {
+            curv_prev = 0;
+        } else {
+            curv_prev = solve_curvature(pos.segment);
+        }
+        if (pos.segment == _line.size() - 2) {
+            curv_next = 0;
+        } else {
+            curv_next = solve_curvature(pos.segment + 1);
+        }
+
+        auto fraction = min<TFloat>(1., max<TFloat>(0., pos.fraction)); // clip fraction
+        return curv_prev * (1 - fraction) + curv_next * fraction;
     }
 
     TFloat Path::interpolate_at(const std::vector<TFloat> &values, const PathPosition &pos) const

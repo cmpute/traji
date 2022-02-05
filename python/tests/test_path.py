@@ -1,3 +1,4 @@
+from curses import window
 import traji
 import numpy as np
 from shapely.geometry import Point as sPoint, LineString
@@ -63,6 +64,22 @@ def test_shapely_interop():
     path2 = traji.Path(shapely_path)
     assert path == path2
 
+def test_curvature():
+    path = traji.Path([(0, 0), (0, 1), (1, 1)])
+
+    assert path.curvature_from(-0.5) == 0
+    assert path.curvature_from(0) == 0
+    assert np.isclose(path.curvature_from(1), -np.sqrt(2))
+    assert path.curvature_from(2) == 0
+    assert path.curvature_from(2.5) == 0
+
+    # draw a circle
+    grid = np.linspace(-np.pi, np.pi, 100)
+    points = np.array([np.cos(grid), np.sin(grid)]).T
+    path = traji.Path(points)
+    np.isclose(path.curvature_from(1), 1)
+    np.isclose(path.curvature_from(2), 1)
+
 if __name__ == "__main__":
     test_project()
     test_respacing()
@@ -70,3 +87,4 @@ if __name__ == "__main__":
     test_resample()
     test_shapely_interop()
     test_position_conversion()
+    test_curvature()

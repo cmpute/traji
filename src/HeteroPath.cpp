@@ -83,7 +83,7 @@ namespace traji
         }
     }
 
-    TFloat PathPosition::to_s(const HeteroPath& path)
+    TFloat PathPosition::to_s(const HeteroPath& path) const
     {
         return path._distance[segment] + (path._distance[segment+1] - path._distance[segment]) * fraction;
     }

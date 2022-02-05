@@ -80,7 +80,8 @@ class QuinticPolyTrajectory:
                  x0: Optional[Tuple[float, float, float]] = None,
                  xT: Optional[Tuple[float, float, float]] = None,
                  y0: Optional[Tuple[float, float, float]] = None,
-                 yT: Optional[Tuple[float, float, float]] = None): ...
+                 yT: Optional[Tuple[float, float, float]] = None,
+                 relax_sx: Optional[bool] = False): ...
 
     @property
     def T(self): ...

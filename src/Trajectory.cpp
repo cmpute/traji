@@ -8,7 +8,7 @@ using namespace std::placeholders;
 
 namespace traji
 {
-    TFloat PathPosition::to_t(const Trajectory &traj)
+    TFloat PathPosition::to_t(const Trajectory &traj) const
     {
         return traj._timestamps[segment] + (traj._timestamps[segment+1] - traj._timestamps[segment]) * fraction;
     }
@@ -107,8 +107,8 @@ namespace traji
             return solve_acceleration(pos.segment);
         else if (interpolate)
         {
-            return solve_acceleration(pos.segment).array() * pos.fraction +
-                   solve_acceleration(pos.segment+1).array() * (1 - pos.fraction);
+            return solve_acceleration(pos.segment).array() * (1 - pos.fraction) +
+                   solve_acceleration(pos.segment + 1).array() * pos.fraction;
         }
         else
         {
