@@ -174,11 +174,11 @@ PYBIND11_MODULE(_bindings, m) {
         .def("point_at", py::overload_cast<const PathPosition &>(&Trajectory::point_at, py::const_))
         .def("tangent_at", py::overload_cast<TFloat>(&Trajectory::tangent_at, py::const_))
         .def("tangent_at", py::overload_cast<const PathPosition &>(&Trajectory::tangent_at, py::const_))
-        .def("velocity_from", &Trajectory::velocity_from)
-        .def("velocity_at", py::overload_cast<TFloat, bool>(&Trajectory::velocity_at, py::const_), py::arg("s"), py::arg("interpolate") = false)
+        .def("velocity_from", &Trajectory::velocity_from, py::arg("s"), py::arg("interpolate") = false)
+        .def("velocity_at", py::overload_cast<TFloat, bool>(&Trajectory::velocity_at, py::const_), py::arg("t"), py::arg("interpolate") = false)
         .def("velocity_at", py::overload_cast<const PathPosition&, bool>(&Trajectory::velocity_at, py::const_), py::arg("pos"), py::arg("interpolate") = false)
-        .def("acceleration_from", &Trajectory::acceleration_from)
-        .def("acceleration_at", py::overload_cast<TFloat, bool>(&Trajectory::acceleration_at, py::const_), py::arg("s"), py::arg("interpolate") = false)
+        .def("acceleration_from", &Trajectory::acceleration_from, py::arg("s"), py::arg("interpolate") = false)
+        .def("acceleration_at", py::overload_cast<TFloat, bool>(&Trajectory::acceleration_at, py::const_), py::arg("t"), py::arg("interpolate") = false)
         .def("acceleration_at", py::overload_cast<const PathPosition&, bool>(&Trajectory::acceleration_at, py::const_), py::arg("pos"), py::arg("interpolate") = false)
         .def("resample_at", &Trajectory::resample_at)
         ;
@@ -238,12 +238,15 @@ PYBIND11_MODULE(_bindings, m) {
         // .def("densify", &HeteroPath::densify)
         ;
 
-    m.def("frenet_from_cartesian", py::overload_cast<const Path&, const Trajectory&>(frenet::from_cartesian));
-    m.def("frenet_to_cartesian", py::overload_cast<const Path&, const Trajectory&>(frenet::to_cartesian));
-    m.def("frenet_from_cartesian", py::overload_cast<const Path&, const Point&>(frenet::from_cartesian));
-    m.def("frenet_to_cartesian", py::overload_cast<const Path&, const Point&>(frenet::to_cartesian));
-    m.def("frenet_from_cartesian", py::overload_cast<const Path&, const Path&>(frenet::from_cartesian));
-    m.def("frenet_to_cartesian", py::overload_cast<const Path&, const Path&>(frenet::to_cartesian));
+    py::module m_frenet = m.def_submodule("frenet", "Frenet related functionalitys");
+    m_frenet.def("from_cartesian", py::overload_cast<const Path&, const Trajectory&>(frenet::from_cartesian));
+    m_frenet.def("to_cartesian", py::overload_cast<const Path&, const Trajectory&>(frenet::to_cartesian));
+    m_frenet.def("from_cartesian", py::overload_cast<const Path&, const Point&>(frenet::from_cartesian));
+    m_frenet.def("to_cartesian", py::overload_cast<const Path&, const Point&>(frenet::to_cartesian));
+    m_frenet.def("from_cartesian", py::overload_cast<const Path&, const Path&>(frenet::from_cartesian));
+    m_frenet.def("to_cartesian", py::overload_cast<const Path&, const Path&>(frenet::to_cartesian));
+    m_frenet.def("to_cartesian_fixing_position", &frenet::to_cartesian_fixing_position,
+            py::arg("ref"), py::arg("traj"), py::arg("scale") = 1.);
 
     m.def("distance", py::overload_cast<const Point&, const Point&>(traji::distance));
     m.def("distance", py::overload_cast<const Path&, const Point&>(traji::distance));

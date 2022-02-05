@@ -165,7 +165,8 @@ public:
     TFloat tangent_at(const PathPosition &pos) const;
 
     /// Get the curvature at given position. The curvature is precise on the vertices, and
-    /// interpolated on segments.
+    /// interpolated on segments. The curvature is positive if the center is to the left
+    /// of the path.
     inline TFloat curvature_from(TFloat s) const
     {
         return curvature_at(PathPosition::from_s(*this, s));
@@ -179,7 +180,8 @@ public:
     }
     TFloat interpolate_at(const std::vector<TFloat> &values, const PathPosition &pos) const;
 
-    /// Get the signed distance and foot point from a point to the path
+    /// Get the signed distance and foot point from a point to the path. The distance is positive
+    /// if the point is at left hand side of the direction of path
     /// @return (distance to the path, projection point position)
     std::pair<TFloat, PathPosition> project(const Point &point) const;
 
@@ -423,6 +425,10 @@ namespace frenet
     {
         return Trajectory(to_cartesian(ref, (Path&)traj), traj.timestamps());
     }
+
+    // Convert the trajectory to cartesian coordinate and adjust vertices position to
+    // accomodate curvature change
+    Trajectory to_cartesian_fixing_position(const Path &ref, const Trajectory &traj, TFloat scale = 1.);
 }
 
 // ==================================== binary functions ====================================

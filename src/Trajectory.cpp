@@ -15,8 +15,8 @@ namespace traji
     PathPosition PathPosition::from_t(const Trajectory &traj, TFloat t)
     {
         auto segment_iter = upper_bound(traj._timestamps.begin(), traj._timestamps.end(), t);
-        auto segment_idx = distance(traj._timestamps.begin(), segment_iter);
-        segment_idx = min((long)traj.size() - 2L, max(0L, segment_idx)); // clip the segment index
+        auto segment_idx = distance(traj._timestamps.begin(), segment_iter) - 1;
+        segment_idx = min((long)traj.size() - 1L, max(0L, segment_idx)); // clip the segment index
 
         auto t0 = traj._timestamps[segment_idx], t1 = traj._timestamps[segment_idx+1];
 
@@ -61,7 +61,7 @@ namespace traji
     Vector2 Trajectory::velocity_at(const PathPosition &pos, bool interpolate) const
     {
         if (!interpolate ||
-            (pos.segment == 0 && pos.fraction < 0.5) ||
+            (pos.segment == 0 && pos.fraction < 0.5) || // assume constant speed at both ends
             (pos.segment == _line.size() - 2 && pos.fraction >= 0.5))
             return solve_velocity(pos.segment);
         else
@@ -72,16 +72,16 @@ namespace traji
             if (pos.fraction < 0.5)
             {
                 vel1 = solve_velocity(pos.segment - 1);
-                w1 = 0.5 + pos.fraction;
+                w1 = 0.5 - pos.fraction;
                 vel2 = solve_velocity(pos.segment);
-                w2 = 0.5 - pos.fraction;
+                w2 = 0.5 + pos.fraction;
             }
             else
             {
                 vel1 = solve_velocity(pos.segment);
-                w1 = pos.fraction - 0.5;
+                w1 = 1.5 - pos.fraction;
                 vel2 = solve_velocity(pos.segment + 1);
-                w2 = 1.5 - pos.fraction;
+                w2 = pos.fraction - 0.5;
             }
             return vel1.array() * w1 + vel2.array() * w2;
         }
@@ -205,7 +205,7 @@ namespace traji
     Trajectory QuinticPolyTrajectory::periodize(TFloat interval) const
     {
         auto t = VectorX::LinSpaced((size_t)ceil(_T / interval) + 1, 0, _T).array();
-         
+
         ArrayX x(t.rows()), y(t.rows());
         x.setConstant(_x_coeffs(0));
         y.setConstant(_y_coeffs(0));
