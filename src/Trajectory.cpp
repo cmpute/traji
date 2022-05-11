@@ -36,7 +36,7 @@ namespace traji
                 result.push_back(PathPosition::from_t(path, t));
             else
             {
-                while (t > path._timestamps[cur_idx] && cur_idx < (path.size() - 1))
+                while (t > path._timestamps[cur_idx] && cur_idx < path.size())
                     cur_idx++;
 
                 auto t0 = path._timestamps[cur_idx-1], t1 = path._timestamps[cur_idx];
