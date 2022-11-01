@@ -134,6 +134,7 @@ public:
     /// The size of a path is the number of segments
     inline std::size_t size() const { return _line.empty() ? 0 : _line.size() - 1; }
     inline TFloat length() const { return _distance.back(); }
+    inline bool empty() const { return _line.empty(); }
     inline std::vector<TFloat> segment_lengths() const
     {
         std::vector<TFloat> lengths(size());

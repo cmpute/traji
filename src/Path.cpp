@@ -165,6 +165,8 @@ namespace traji
 
     pair<TFloat, PathPosition> Path::project(const Point &point) const
     {
+        assert(!_line.empty()); // calculate projection on an empty path is illegal
+
         vector<pair<TFloat, TFloat>> dists(_line.size() - 1);
         vector<TFloat> comp_dists(_line.size() - 1); // actual distance for comparison
         for (int i = 1; i < _line.size(); i++)
