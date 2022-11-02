@@ -53,9 +53,9 @@ namespace traji
         assert (segment_idx >= 0 && segment_idx <= _line.size() - 2);
 
         TFloat dt = _timestamps[segment_idx+1] - _timestamps[segment_idx];
-        TFloat vx = (_line[segment_idx+1].get<0>() - _line[segment_idx].get<0>()) / dt;
-        TFloat vy = (_line[segment_idx+1].get<1>() - _line[segment_idx].get<1>()) / dt;
-        return Vector2(vx, vy);
+        Vector2 p1(_line[segment_idx+1].get<0>(), _line[segment_idx+1].get<1>());
+        Vector2 p2(_line[segment_idx].get<0>(), _line[segment_idx].get<1>());
+        return (p1 - p2) / dt;
     }
 
     Vector2 Trajectory::velocity_at(const PathPosition &pos, bool interpolate) const

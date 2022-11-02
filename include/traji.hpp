@@ -133,7 +133,7 @@ public:
 
     /// The size of a path is the number of segments
     inline std::size_t size() const { return _line.empty() ? 0 : _line.size() - 1; }
-    inline TFloat length() const { return _distance.back(); }
+    inline TFloat length() const { return _distance.back() - _distance.front(); }
     inline bool empty() const { return _line.empty(); }
     inline std::vector<TFloat> segment_lengths() const
     {
@@ -227,7 +227,8 @@ public:
     inline Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end, TFloat s0 = 0)
         : Path(begin, end, s0), _timestamps(t_begin, t_end) { }
 
-    const std::vector<TFloat>& timestamps() const { return _timestamps; }
+    inline const std::vector<TFloat>& timestamps() const { return _timestamps; }
+    inline const TFloat duration() const { return _timestamps.back() - _timestamps.front(); }
 
     /// Get the point indicated by the time
     using Path::point_at;
