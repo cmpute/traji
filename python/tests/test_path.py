@@ -3,6 +3,10 @@ import traji
 import numpy as np
 from shapely.geometry import Point as sPoint, LineString
 
+def test_deduplicate():
+    path = traji.Path([(0, 0), (0, 0), (1, 1), (1, 1)])
+    assert path == traji.Path([(0, 0), (1, 1)])
+
 def test_project():
     path = traji.Path([(0, 0), (0, 1), (1, 1)])
     d, pos = path.project(traji.Point(0, 0.1))
@@ -80,6 +84,16 @@ def test_curvature():
     np.isclose(path.curvature_from(1), 1)
     np.isclose(path.curvature_from(2), 1)
 
+def test_extract():
+    path = traji.Path([(0, 0), (0, 1), (1, 1)])
+
+    assert path.extract_from(0.5, 1.5) == traji.Path([(0, 0.5), (0, 1), (0.5, 1)])
+    assert path.extract_from(-2, -1) == traji.Path([(0, -2), (0, -1)])
+    assert path.extract_from(3, 4) == traji.Path([(2, 1), (3, 1)])
+    assert path.extract_from(-2, 4) == traji.Path([(0, -2), (0, 1), (3, 1)])
+    assert path.extract_from(-1, 0.5) == traji.Path([(0, -1), (0, 0.5)])
+    assert path.extract_from(1.5, 3) == traji.Path([(0.5, 1), (2, 1)])
+
 if __name__ == "__main__":
     test_project()
     test_respacing()
@@ -88,3 +102,4 @@ if __name__ == "__main__":
     test_shapely_interop()
     test_position_conversion()
     test_curvature()
+    test_extract()

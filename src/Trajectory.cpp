@@ -55,6 +55,7 @@ namespace traji
         TFloat dt = _timestamps[segment_idx+1] - _timestamps[segment_idx];
         Vector2 p1(_line[segment_idx+1].get<0>(), _line[segment_idx+1].get<1>());
         Vector2 p2(_line[segment_idx].get<0>(), _line[segment_idx].get<1>());
+        assert(dt != 0);
         return (p1 - p2) / dt;
     }
 
@@ -94,6 +95,7 @@ namespace traji
         TFloat dt = (_timestamps[point_idx+1] - _timestamps[point_idx-1]) / 2;
         Vector2 vel1 = solve_velocity(point_idx - 1);
         Vector2 vel2 = solve_velocity(point_idx);
+        assert(dt != 0);
         return (vel2.array() - vel1.array()) / dt;
     }
 
@@ -319,7 +321,7 @@ namespace std
 
         stringstream ss;
         ss << '[' << to_string(value.vertices()[0]) << " @ " << value.timestamps()[0];
-        for (size_t i = 1; i < value.size(); i++)
+        for (size_t i = 1; i < value.vertices().size(); i++)
             ss << ", " << to_string(value.vertices()[i]) << " @ " << value.timestamps()[i];
         ss << ']';
         return ss.str();

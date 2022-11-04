@@ -1,6 +1,10 @@
 #ifndef TRAJI_HPP
 #define TRAJI_HPP
 
+// TODO: some big changes
+// 1. fix TFloat to float, while always use double for s0 and t0, and store the difference from s0 / t0 instead.
+// 2. remove PathPosition::component
+
 #include <vector>
 #include <utility>
 #include <tuple>
@@ -74,6 +78,7 @@ struct PathPosition
     std::size_t segment; // segment index in the line string
     TFloat fraction; // fraction of the point in the segment
 
+    PathPosition() : component(0), segment(0), fraction(0.0) {}
     PathPosition(std::size_t component_, std::size_t segment_, TFloat fraction_)
         : component(component_), segment(segment_), fraction(fraction_) {}
     PathPosition(std::size_t segment_, TFloat fraction_)
@@ -105,9 +110,9 @@ class Path
 protected:
     LineString _line; // the geometry of the line string
     std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line.
-                                   // first value is zero by default, but can be assigned.
+                                   // first value is zero by default, but can be assigned differently.
 
-    /// Update _distance values
+    /// Recalculate the _distance values
     void update_distance(TFloat s0 = 0);
 
     /// Calculate feasible smooth radius given the input as max limit
@@ -202,6 +207,11 @@ public:
     /// Return a path represented by a list of distance to start. 
     /// The best performance is achieved when s_list is sorted ascendingly.
     Path resample_from(const std::vector<TFloat> &s_list) const;
+
+    /// Extract a part of the path (between s_start and s_end).
+    /// The result path will contains all the way points between s_start and s_end,
+    /// and the two end points (with extrapolating)
+    Path extract_from(TFloat s_start, TFloat s_end) const;
 };
 
 /// non-parametric linestring with time, assuming constant acceleration
@@ -226,6 +236,18 @@ public:
     template<typename Iterator, typename TIterator>
     inline Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end, TFloat s0 = 0)
         : Path(begin, end, s0), _timestamps(t_begin, t_end) { }
+
+    /// @brief Create the trajectory based on a path, assuming that the speed is constant along the trajectory.
+    /// @param path The reference path
+    /// @param t0 The initial timestamp
+    /// @param speed The speed in the trajectory
+    inline Trajectory(const Path& path, TFloat t0, TFloat speed) : Path(path) {
+        _timestamps.reserve(_distance.size());
+        float d0 = _distance.front();
+        for (auto &d : _distance) {
+            _timestamps.push_back(t0 + (d - d0) / speed);
+        }
+    }
 
     inline const std::vector<TFloat>& timestamps() const { return _timestamps; }
     inline const TFloat duration() const { return _timestamps.back() - _timestamps.front(); }

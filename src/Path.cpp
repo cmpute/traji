@@ -69,8 +69,15 @@ namespace traji
         _distance[0] = s;
         for (int i = 1; i < _line.size(); i++)
         {
-            s += distance(_line[i], _line[i-1]);
-            _distance[i] = s;
+            TFloat d = distance(_line[i], _line[i-1]);
+            if (d > std::numeric_limits<TFloat>::epsilon()) {
+                s += d;
+                _distance[i] = s;
+            } else {
+                // remove duplicate points to avoid weirdness
+                _line.erase(_line.begin() + i);
+                _distance.erase(_distance.begin() + i);
+            }
         }
     }
 
@@ -468,6 +475,39 @@ namespace traji
         return Path(move(plist));
     }
 
+    Path Path::extract_from(TFloat s_start, TFloat s_end) const
+    {
+        bool reversed = s_start > s_end;
+        if (reversed) {
+            std::swap(s_start, s_end);
+        }
+
+        auto start = PathPosition::from_s(*this, s_start);
+        auto end = PathPosition::from_s(*this, s_end);
+
+        vector<Point> plist;
+        plist.emplace_back(point_at(start));
+
+        // shortcut
+        if (start.segment == end.segment) {
+            plist.emplace_back(point_at(end));
+            return Path(move(plist));
+        }
+
+        plist.insert(
+            plist.end(),
+            _line.begin() + start.segment + 1,
+            _line.begin() + end.segment + 1
+        );
+
+        plist.emplace_back(point_at(end));
+
+        if (reversed) {
+            std::reverse(plist.begin(), plist.end());
+        }
+        return Path(move(plist));
+    }
+
     vector<Point> intersection(const Path &lhs, const Path &rhs)
     {
         vector<Point> plist;
@@ -515,7 +555,7 @@ namespace std
 
         stringstream ss;
         ss << '[' << to_string(value.vertices()[0]);
-        for (size_t i = 1; i <= value.size(); i++)
+        for (size_t i = 1; i < value.vertices().size(); i++)
             ss << ", " << to_string(value.vertices()[i]);
         ss << ']';
         return ss.str();

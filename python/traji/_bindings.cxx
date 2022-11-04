@@ -60,8 +60,9 @@ PYBIND11_MODULE(_bindings, m) {
         ;
 
     py::class_<PathPosition>(m, "PathPosition")
-        .def(py::init<size_t, size_t, TFloat>(), py::arg("component"), py::arg("segment"), py::arg("fraction"))
+        .def(py::init<>())
         .def(py::init<size_t, TFloat>(), py::arg("segment"), py::arg("fraction"))
+        .def(py::init<size_t, size_t, TFloat>(), py::arg("component"), py::arg("segment"), py::arg("fraction"))
         .def("__str__", py::overload_cast<const PathPosition&>(to_string))
         .def("__repr__", [](const PathPosition &pos) { 
             stringstream ss; ss << "<PathPosition ";
@@ -148,12 +149,14 @@ PYBIND11_MODULE(_bindings, m) {
         .def("densify", &Path::densify, py::arg("resolution"))
         .def("smooth", &Path::smooth, py::arg("smooth_radius"), py::arg("seg_type") = SegmentType::Arc)
         .def("resample_from", &Path::resample_from)
+        .def("extract_from", &Path::extract_from)
         ;
 
     py::class_<Trajectory, Path>(m, "Trajectory")
         .def(py::init<>())
         .def(py::init<const Trajectory&>())
         .def(py::init<const Path&, const vector<TFloat>&>())
+        .def(py::init<const Path&, TFloat, TFloat>())
         .def("__str__", py::overload_cast<const Trajectory&>(&to_string))
         .def("__repr__", [](const Trajectory& t) {
             stringstream ss; ss << "<Trajectory with " << t.size() << " points>"; return ss.str();
