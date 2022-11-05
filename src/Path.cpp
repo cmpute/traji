@@ -66,17 +66,20 @@ namespace traji
 
         TFloat s = s0;
         _distance.resize(_line.size());
-        _distance[0] = s;
+        _distance[0] = s0;
         for (int i = 1; i < _line.size(); i++)
         {
-            TFloat d = distance(_line[i], _line[i-1]);
-            if (d > std::numeric_limits<TFloat>::epsilon()) {
+            TFloat d = distance(_line[i-1], _line[i]);
+            if (d > 1e-6) { // 1e-6 is approximately 8*epsilon, the distance() function
+                            // can produce several epsilons even if the two points are the same
                 s += d;
                 _distance[i] = s;
             } else {
                 // remove duplicate points to avoid weirdness
+                // TODO: this method will cause problem for Trajectory
                 _line.erase(_line.begin() + i);
                 _distance.erase(_distance.begin() + i);
+                i--;
             }
         }
     }
@@ -259,18 +262,13 @@ namespace traji
         result._line.push_back(_line.front());
 
         auto residual_s = resolution;
-        auto segment_length = _distance[1];
+        auto segment_length = _distance[1] - _distance[0];
         size_t segment_idx = 0;
-        
-        while(residual_s < segment_length)
-        {
-            result._line.push_back(line::interpolate(
-                _line[segment_idx], _line[segment_idx+1],
-                residual_s / segment_length
-            ));
 
-            residual_s += resolution;
-            if (residual_s >= segment_length)
+        while(true)
+        {
+            // find the segment of the next point
+            while (residual_s >= segment_length)
             {
                 residual_s -= segment_length;
 
@@ -279,10 +277,20 @@ namespace traji
                     break;
                 segment_length = _distance[segment_idx+1] - _distance[segment_idx];
             }
+            if (segment_idx >= _line.size() - 1)
+                break;
+
+            // append a point only if residual_s < segment_length
+            result._line.push_back(line::interpolate(
+                _line[segment_idx], _line[segment_idx+1],
+                residual_s / segment_length
+            ));
+
+            residual_s += resolution;
         }
 
-        if (residual_s > segment_length)
-            result._line.push_back(_line.back());
+        // duplicate end point will be removed by update_distance
+        result._line.push_back(_line.back());
 
         result.update_distance(_distance[0]);
         return result;
@@ -480,6 +488,10 @@ namespace traji
         bool reversed = s_start > s_end;
         if (reversed) {
             std::swap(s_start, s_end);
+
+            // TODO: add option preserve_s, default is true. If true, then s_start has to be less than s_end,
+            // and the s0 for the new path will be s_start
+            assert(false);
         }
 
         auto start = PathPosition::from_s(*this, s_start);
@@ -491,7 +503,7 @@ namespace traji
         // shortcut
         if (start.segment == end.segment) {
             plist.emplace_back(point_at(end));
-            return Path(move(plist));
+            return Path(move(plist), s_start);
         }
 
         plist.insert(
@@ -505,7 +517,7 @@ namespace traji
         if (reversed) {
             std::reverse(plist.begin(), plist.end());
         }
-        return Path(move(plist));
+        return Path(move(plist), s_start);
     }
 
     vector<Point> intersection(const Path &lhs, const Path &rhs)

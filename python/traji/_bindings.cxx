@@ -94,9 +94,9 @@ PYBIND11_MODULE(_bindings, m) {
 
     py::class_<Path>(m, "Path", py::buffer_protocol())
         .def(py::init<>())
-        .def(py::init<const Path&>())
-        .def(py::init<const vector<Point>&>())
-        .def(py::init<const vector<Point>&, TFloat>())
+        .def(py::init<const Path&>(), py::arg("path"))
+        .def(py::init<const vector<Point>&>(), py::arg("vertices"))
+        .def(py::init<const vector<Point>&, TFloat>(), py::arg("vertices"), py::arg("s0"))
         .def(py::init([](py::object points) {
             if (py::hasattr(points, "coords"))
                 points = points.attr("coords");
@@ -106,7 +106,7 @@ PYBIND11_MODULE(_bindings, m) {
             for (auto p : pylist)
                 clist.push_back(cast_point(p));
             return make_unique<Path>(move(clist));
-        }))
+        }), py::arg("vertices"))
         .def("__len__", &Path::size)
         .def("__str__", py::overload_cast<const Path&>(&to_string))
         .def("__repr__", [](const Path& p) {

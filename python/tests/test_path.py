@@ -7,6 +7,9 @@ def test_deduplicate():
     path = traji.Path([(0, 0), (0, 0), (1, 1), (1, 1)])
     assert path == traji.Path([(0, 0), (1, 1)])
 
+    path = traji.Path([(0, 0), (0, 1), (0, 1), (0, 1), (0, 1), (1, 1)])
+    assert path == traji.Path([(0, 0), (0, 1), (1, 1)])
+
 def test_project():
     path = traji.Path([(0, 0), (0, 1), (1, 1)])
     d, pos = path.project(traji.Point(0, 0.1))
@@ -26,7 +29,8 @@ def test_position_conversion():
         assert np.isclose(pos.to_s(path), s)
 
 def test_respacing():
-    path = traji.Path([(0, 0), (0, 1), (1, 1)])
+    points = [(0, 0), (0, 1), (1, 1), (1, 0)]
+    path = traji.Path(points)
     respaced = path.respacing(0.1)
     assert np.allclose(respaced.segment_lengths, np.linalg.norm(np.diff(respaced, axis=0), axis=1))
     assert np.all(np.array(respaced.segment_lengths) < 0.1 + 1e-5)
@@ -39,6 +43,17 @@ def test_respacing():
     respaced = path.respacing(0.3, smooth_radius=0.3)
     assert np.allclose(respaced.segment_lengths, np.linalg.norm(np.diff(respaced, axis=0), axis=1))
     assert np.all(np.array(respaced.segment_lengths) < 0.3 + 1e-5)
+    respaced = path.respacing(5)
+    assert respaced == traji.Path([(0, 0), (1, 0)])
+    respaced = path.respacing(1.5)
+    assert respaced == traji.Path([(0, 0), (0.5, 1), (1, 0)])
+
+    path = traji.Path([traji.Point(*p) for p in points], s0=100)
+    respaced = path.respacing(0.1)
+    assert np.allclose(respaced.point_from(101), [0, 1], atol=1e-3)
+    assert np.all(np.array(respaced.segment_lengths) < 0.1 + 1e-5)
+    respaced = path.respacing(0.1, smooth_radius=0.3)
+    assert np.all(np.array(respaced.segment_lengths) < 0.1 + 1e-5)
 
 def test_densify():
     path = traji.Path([(0, 0), (0, 1), (1, 1)])

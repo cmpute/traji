@@ -4,6 +4,7 @@
 // TODO: some big changes
 // 1. fix TFloat to float, while always use double for s0 and t0, and store the difference from s0 / t0 instead.
 // 2. remove PathPosition::component
+// 3. add function to calculate similarity between two path?
 
 #include <vector>
 #include <utility>
@@ -189,7 +190,7 @@ public:
     /// Get the signed distance and foot point from a point to the path. The distance is positive
     /// if the point is at left hand side of the direction of path
     /// @return (distance to the path, projection point position)
-    std::pair<TFloat, PathPosition> project(const Point &point) const;
+    std::pair<TFloat, PathPosition> project(const Point &point) const; // TODO: if the path contains loop, then we might just want a local minimum based on a starting s value
 
     /// Return the path in a form with equally space points (interpolating over s)
     /// The starting and end point of the original line string is guaranteed to be included and not smoothed
