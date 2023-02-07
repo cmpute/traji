@@ -2,7 +2,7 @@
 #define TRAJI_HPP
 
 // TODO: some big changes
-// 1. fix TFloat to float, while always use double for s0 and t0, and store the difference from s0 / t0 instead.
+// 1. fix TRel to float, while always use double for s0 and t0, and store the difference from s0 / t0 instead.
 // 2. remove PathPosition::component
 // 3. add function to calculate similarity between two path?
 
@@ -15,24 +15,29 @@
 /* forward declarations */
 namespace traji {
 
-typedef float TFloat;
-typedef Eigen::Matrix<TFloat, 2, 1> Vector2;
-typedef Eigen::Matrix<TFloat, 3, 1> Vector3;
-typedef Eigen::Matrix<TFloat, 2, 2> Matrix2;
-typedef Eigen::Matrix<TFloat, 3, 3> Matrix3;
-typedef Eigen::Matrix<TFloat, 6, 1> Vector6;
-typedef Eigen::Matrix<TFloat, -1, 1> VectorX;
-typedef Eigen::Array<TFloat, -1, 1> ArrayX;
+/// @brief Float type used for relative coordinates
+typedef float TRel;
+
+/// @brief Float type used for absolute coordinates
+typedef double TAbs;
+
+typedef Eigen::Matrix<TRel, 2, 1> Vector2;
+typedef Eigen::Matrix<TRel, 3, 1> Vector3;
+typedef Eigen::Matrix<TRel, 2, 2> Matrix2;
+typedef Eigen::Matrix<TRel, 3, 3> Matrix3;
+typedef Eigen::Matrix<TRel, 6, 1> Vector6;
+typedef Eigen::Matrix<TRel, -1, 1> VectorX;
+typedef Eigen::Array<TRel, -1, 1> ArrayX;
 
 #ifndef M_PI
-constexpr TFloat pi = 3.14159265358979323846;
-constexpr TFloat pi2 = pi/2;
+constexpr TRel pi = 3.14159265358979323846;
+constexpr TRel pi2 = pi/2;
 #else
-constexpr TFloat pi = M_PI;
-constexpr TFloat pi2 = M_PI_2;
+constexpr TRel pi = M_PI;
+constexpr TRel pi2 = M_PI_2;
 #endif
 
-typedef boost::geometry::model::point<TFloat, 2, boost::geometry::cs::cartesian> Point;
+typedef boost::geometry::model::point<TRel, 2, boost::geometry::cs::cartesian> Point;
 typedef boost::geometry::model::linestring<Point> LineString;
 
 class Path;
@@ -57,13 +62,29 @@ namespace traji
 
 enum class SegmentType
 {
-    Line, // no params
-    Arc, // param: x, y of the arc center 
-    QuadraticBezier, // param: x, y of the control point
-    CubicBezier, // param: x1, y1, x2, y2 of the two control points
+    /// @brief A straight segment
+    /// params: none
+    Line,
+    /// @brief A segment on a circle
+    /// params: x, y of the arc center 
+    Arc, 
+    /// @brief A segment on a conic section
+    /// params: TBD
+    Conic,
+    /// @brief A segment defined by a quadratic bezier curve
+    /// params: x, y of the control point
+    /// Note that a quadratic bezier curve is also a parabolic curve
+    QuadraticBezier,
+    /// @brief A segment defined by a cubic bezier curve
+    /// params: x1, y1, x2, y2 of the two control points
+    CubicBezier,
 
-    // For polynomials, the latent parameter range need to be normalized to [0, 1]
-    Polynomial, // params: polynomial coeffs (high to low)
+    // XXX: with all segment types implemented above, we should be able to export the path to a SVG
+
+    /// @brief A path segment defined by Polynomial. This can be used to create a spline.
+    /// params: polynomial coeffs (high to low)
+    /// The latent parameter range need to be normalized to [0, 1].
+    Polynomial, 
 };
 
 // ==================================== Non-parametric paths ====================================
@@ -77,32 +98,32 @@ struct PathPosition
 {
     std::size_t component; // index in multi-path collection
     std::size_t segment; // segment index in the line string
-    TFloat fraction; // fraction of the point in the segment
+    TRel fraction; // fraction of the point in the segment
 
     PathPosition() : component(0), segment(0), fraction(0.0) {}
-    PathPosition(std::size_t component_, std::size_t segment_, TFloat fraction_)
+    PathPosition(std::size_t component_, std::size_t segment_, TRel fraction_)
         : component(component_), segment(segment_), fraction(fraction_) {}
-    PathPosition(std::size_t segment_, TFloat fraction_)
+    PathPosition(std::size_t segment_, TRel fraction_)
         : component(0), segment(segment_), fraction(fraction_) {}
 
     /// Convert the position to the distance to the beginning
-    TFloat to_s(const Path &path) const;
-    TFloat to_s(const HeteroPath &path) const;
+    TRel to_s(const Path &path) const;
+    TRel to_s(const HeteroPath &path) const;
 
     /// Convert the distance to the beginning to s
-    static PathPosition from_s(const Path &path, TFloat s);
-    static PathPosition from_s(const HeteroPath &path, TFloat s);
-    static std::vector<PathPosition> from_s(const Path &path, const std::vector<TFloat> &s_list);
+    static PathPosition from_s(const Path &path, TRel s);
+    static PathPosition from_s(const HeteroPath &path, TRel s);
+    static std::vector<PathPosition> from_s(const Path &path, const std::vector<TRel> &s_list);
 
     /// Convert the position to the distance to the timestamp
-    TFloat to_t(const Trajectory &traj) const;
-    static PathPosition from_t(const Trajectory &traj, TFloat t);
-    static std::vector<PathPosition> from_t(const Trajectory &path, const std::vector<TFloat> &t_list);
+    TRel to_t(const Trajectory &traj) const;
+    static PathPosition from_t(const Trajectory &traj, TRel t);
+    static std::vector<PathPosition> from_t(const Trajectory &path, const std::vector<TRel> &t_list);
 
     /// Move the position forward along the path. Note that this function is only efficient
     /// when the distance is not too large. Otherwise please use to_s() and from_s()
-    PathPosition forward(const Path &path, TFloat s) const;
-    PathPosition backward(const Path &path, TFloat s) const;
+    PathPosition forward(const Path &path, TRel s) const;
+    PathPosition backward(const Path &path, TRel s) const;
 };
 
 /// (immutable) non-parametric linestring
@@ -110,19 +131,19 @@ class Path
 {
 protected:
     LineString _line; // the geometry of the line string
-    std::vector<TFloat> _distance; // the distance of each vertices to the first vertex along the line.
+    std::vector<TRel> _distance; // the distance of each vertices to the first vertex along the line.
                                    // first value is zero by default, but can be assigned differently.
 
     /// Recalculate the _distance values
-    void update_distance(TFloat s0 = 0);
+    void update_distance(TRel s0 = 0);
 
     /// Calculate feasible smooth radius given the input as max limit
-    std::vector<TFloat> calc_feasible_radius(TFloat smooth_radius) const;
+    std::vector<TRel> calc_feasible_radius(TRel smooth_radius) const;
 
 private:
     /// respacing with smooth_radius = 0
-    Path respacing0(TFloat resolution) const;
-    TFloat solve_curvature(size_t segment_idx) const;
+    Path respacing0(TRel resolution) const;
+    TRel solve_curvature(size_t segment_idx) const;
 
 public:
     friend class PathPosition;
@@ -132,18 +153,18 @@ public:
 
     inline Path() {}
     template<typename Iterator>
-    inline Path(Iterator begin, Iterator end, TFloat s0 = 0) : _line(begin, end) { update_distance(s0); }
+    inline Path(Iterator begin, Iterator end, TRel s0 = 0) : _line(begin, end) { update_distance(s0); }
     inline Path(std::initializer_list<Point> l) : Path(l.begin(), l.end()) {}
-    inline Path(const std::vector<Point> &l, TFloat s0 = 0): Path(l.begin(), l.end(), s0) {}
-    inline Path(std::vector<Point> &&l, TFloat s0 = 0): Path(l.begin(), l.end(), s0) {}
+    inline Path(const std::vector<Point> &l, TRel s0 = 0): Path(l.begin(), l.end(), s0) {}
+    inline Path(std::vector<Point> &&l, TRel s0 = 0): Path(l.begin(), l.end(), s0) {}
 
     /// The size of a path is the number of segments
     inline std::size_t size() const { return _line.empty() ? 0 : _line.size() - 1; }
-    inline TFloat length() const { return _distance.back() - _distance.front(); }
+    inline TRel length() const { return _distance.back() - _distance.front(); }
     inline bool empty() const { return _line.empty(); }
-    inline std::vector<TFloat> segment_lengths() const
+    inline std::vector<TRel> segment_lengths() const
     {
-        std::vector<TFloat> lengths(size());
+        std::vector<TRel> lengths(size());
         for (int i = 1; i < _line.size(); i++)
             lengths[i-1] = _distance[i] - _distance[i-1];
         return lengths;
@@ -158,61 +179,61 @@ public:
     inline const LineString& vertices() const { return _line; }
 
     /// Get the point indicated by the distance from the beginning
-    inline Point point_from(TFloat s) const
+    inline Point point_from(TRel s) const
     {
         return point_at(PathPosition::from_s(*this, s));
     }
     Point point_at(const PathPosition &pos) const;
 
     /// Get the tagent at the point indicated by the distance from the beginning
-    inline TFloat tangent_from(TFloat s) const
+    inline TRel tangent_from(TRel s) const
     {
         return tangent_at(PathPosition::from_s(*this, s));
     }
-    TFloat tangent_at(const PathPosition &pos) const;
+    TRel tangent_at(const PathPosition &pos) const;
 
     /// Get the curvature at given position. The curvature is precise on the vertices, and
     /// interpolated on segments. The curvature is positive if the center is to the left
     /// of the path.
-    inline TFloat curvature_from(TFloat s) const
+    inline TRel curvature_from(TRel s) const
     {
         return curvature_at(PathPosition::from_s(*this, s));
     }
-    TFloat curvature_at(const PathPosition &pos) const;
+    TRel curvature_at(const PathPosition &pos) const;
 
     /// Get the value interpolated by the distance from the beginning
-    inline TFloat interpolate_from(const std::vector<TFloat> &values, TFloat s) const
+    inline TRel interpolate_from(const std::vector<TRel> &values, TRel s) const
     {
         return interpolate_at(values, PathPosition::from_s(*this, s));
     }
-    TFloat interpolate_at(const std::vector<TFloat> &values, const PathPosition &pos) const;
+    TRel interpolate_at(const std::vector<TRel> &values, const PathPosition &pos) const;
 
     /// Get the signed distance and foot point from a point to the path. The distance is positive
     /// if the point is at left hand side of the direction of path
     /// @return (distance to the path, projection point position)
-    std::pair<TFloat, PathPosition> project(const Point &point) const; // TODO: if the path contains loop, then we might just want a local minimum based on a starting s value
+    std::pair<TRel, PathPosition> project(const Point &point) const; // TODO: if the path contains loop, then we might just want a local minimum based on a starting s value
 
     /// Return the path in a form with equally space points (interpolating over s)
     /// The starting and end point of the original line string is guaranteed to be included and not smoothed
     /// @param smooth_radius The distance from original vertex to the new smoothed vertex.
-    Path respacing(TFloat resolution, TFloat smooth_radius = 0) const;
+    Path respacing(TRel resolution, TRel smooth_radius = 0) const;
 
     /// Return the path with each segment's length less than the given resolution
     /// This method will retain the original corner points, unlike respacing function
-    Path densify(TFloat resolution) const;
+    Path densify(TRel resolution) const;
 
     /// Return the path with rounded corners. This method doesn't change the density of
     /// the points on the line segments
-    HeteroPath smooth(TFloat smooth_radius, SegmentType segtype = SegmentType::Arc) const;
+    HeteroPath smooth(TRel smooth_radius, SegmentType segtype = SegmentType::Arc) const;
 
     /// Return a path represented by a list of distance to start. 
     /// The best performance is achieved when s_list is sorted ascendingly.
-    Path resample_from(const std::vector<TFloat> &s_list) const;
+    Path resample_from(const std::vector<TRel> &s_list) const;
 
     /// Extract a part of the path (between s_start and s_end).
     /// The result path will contains all the way points between s_start and s_end,
     /// and the two end points (with extrapolating)
-    Path extract_from(TFloat s_start, TFloat s_end) const;
+    Path extract_from(TRel s_start, TRel s_end) const;
 };
 
 /// non-parametric linestring with time, assuming constant acceleration
@@ -220,7 +241,7 @@ public:
 class Trajectory : public Path
 {
 protected:
-    std::vector<TFloat> _timestamps; // the timestamp over each point
+    std::vector<TRel> _timestamps; // the timestamp over each point
 
 private:
     Vector2 solve_velocity(size_t segment_idx) const;
@@ -232,17 +253,17 @@ public:
     friend class CTRATrajectory;
 
     inline Trajectory() {}
-    inline Trajectory(const Path& path, const std::vector<TFloat> &timestamps) : Path(path), _timestamps(timestamps) {}
-    inline Trajectory(Path&& path, std::vector<TFloat> &&timestamps) : Path(path), _timestamps(timestamps) {}
+    inline Trajectory(const Path& path, const std::vector<TRel> &timestamps) : Path(path), _timestamps(timestamps) {}
+    inline Trajectory(Path&& path, std::vector<TRel> &&timestamps) : Path(path), _timestamps(timestamps) {}
     template<typename Iterator, typename TIterator>
-    inline Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end, TFloat s0 = 0)
+    inline Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end, TRel s0 = 0)
         : Path(begin, end, s0), _timestamps(t_begin, t_end) { }
 
     /// @brief Create the trajectory based on a path, assuming that the speed is constant along the trajectory.
     /// @param path The reference path
     /// @param t0 The initial timestamp
     /// @param speed The speed in the trajectory
-    inline Trajectory(const Path& path, TFloat t0, TFloat speed) : Path(path) {
+    inline Trajectory(const Path& path, TRel t0, TRel speed) : Path(path) {
         _timestamps.reserve(_distance.size());
         float d0 = _distance.front();
         for (auto &d : _distance) {
@@ -250,45 +271,45 @@ public:
         }
     }
 
-    inline const std::vector<TFloat>& timestamps() const { return _timestamps; }
-    inline const TFloat duration() const { return _timestamps.back() - _timestamps.front(); }
+    inline const std::vector<TRel>& timestamps() const { return _timestamps; }
+    inline const TRel duration() const { return _timestamps.back() - _timestamps.front(); }
 
     /// Get the point indicated by the time
     using Path::point_at;
-    inline Point point_at(TFloat t) const 
+    inline Point point_at(TRel t) const 
     {
         return point_at(PathPosition::from_t(*this, t));
     }
     using Path::tangent_at;
-    inline TFloat tangent_at(TFloat t) const
+    inline TRel tangent_at(TRel t) const
     {
         return tangent_at(PathPosition::from_t(*this, t));
     }
     Vector2 velocity_at(const PathPosition &pos, bool interpolate = false) const;
-    inline Vector2 velocity_from(TFloat s, bool interpolate = false) const
+    inline Vector2 velocity_from(TRel s, bool interpolate = false) const
     {
         return velocity_at(PathPosition::from_s(*this, s), interpolate);
     }
-    inline Vector2 velocity_at(TFloat t, bool interpolate = false) const
+    inline Vector2 velocity_at(TRel t, bool interpolate = false) const
     {
         return velocity_at(PathPosition::from_t(*this, t), interpolate);
     }
     Vector2 acceleration_at(const PathPosition &pos, bool interpolate = false) const;
-    inline Vector2 acceleration_from(TFloat s, bool interpolate = false) const
+    inline Vector2 acceleration_from(TRel s, bool interpolate = false) const
     {
         return acceleration_at(PathPosition::from_s(*this, s), interpolate);
     }
-    inline Vector2 acceleration_at(TFloat t, bool interpolate = false) const
+    inline Vector2 acceleration_at(TRel t, bool interpolate = false) const
     {
         return acceleration_at(PathPosition::from_t(*this, t), interpolate);
     }
 
     /// Return the trajectory represented by points with equal time intervals
-    Trajectory reperiodize(TFloat interval) const;
+    Trajectory reperiodize(TRel interval) const;
 
     /// Return a path represented by a list of timestamp. 
     /// The best performance is achieved when t_list is sorted ascendingly.
-    Trajectory resample_at(const std::vector<TFloat> &t_list) const;
+    Trajectory resample_at(const std::vector<TRel> &t_list) const;
 };
 
 
@@ -301,28 +322,28 @@ class QuinticPolyTrajectory
 {
 protected:
     Vector6 _x_coeffs, _y_coeffs; // high-order to low-order
-    TFloat _T; // the trajectory starts at t=0 and ends at t=T
+    TRel _T; // the trajectory starts at t=0 and ends at t=T
 
 public:
-    QuinticPolyTrajectory(TFloat T, const Vector6 &x_coeffs, const Vector6 &y_coeffs)
+    QuinticPolyTrajectory(TRel T, const Vector6 &x_coeffs, const Vector6 &y_coeffs)
         : _x_coeffs(x_coeffs), _y_coeffs(y_coeffs), _T(T) {}
 
     /// Solve optimal trajectory based on x and y states (including 1st and 2nd state derivatives)
-    QuinticPolyTrajectory(TFloat T,
+    QuinticPolyTrajectory(TRel T,
                           const Vector3 &x0, const Vector3 &xT,
                           const Vector3 &y0, const Vector3 &yT, bool relax_sx);
 
     inline const Vector6& x_coeffs() const { return _x_coeffs; }
     inline const Vector6& y_coeffs() const { return _y_coeffs; }
-    inline TFloat T() const { return _T; }
+    inline TRel T() const { return _T; }
 
-    Point point_at(TFloat t) const;
-    TFloat tangent_at(TFloat t) const;
-    Vector2 velocity_at(TFloat t) const;
-    Vector2 acceleration_at(TFloat t) const;
+    Point point_at(TRel t) const;
+    TRel tangent_at(TRel t) const;
+    Vector2 velocity_at(TRel t) const;
+    Vector2 acceleration_at(TRel t) const;
 
-    // Trajectory rasterize(TFloat resolution) const;
-    Trajectory periodize(TFloat interval) const;
+    // Trajectory rasterize(TRel resolution) const;
+    Trajectory periodize(TRel interval) const;
 };
 
 
@@ -331,28 +352,27 @@ class CTRATrajectory
 {
 protected:
     Vector6 _init_state; // [x, y, theta, v, a, omega]
-    TFloat _T;
+    TRel _T;
 
 public:
-    CTRATrajectory(TFloat T, const Vector6 &init_state) : _T(T), _init_state(init_state) {}
-    CTRATrajectory(TFloat T, Point p, TFloat theta, TFloat v, TFloat a = 0, TFloat omega = 0)
+    CTRATrajectory(TRel T, const Vector6 &init_state) : _T(T), _init_state(init_state) {}
+    CTRATrajectory(TRel T, Point p, TRel theta, TRel v, TRel a = 0, TRel omega = 0)
         : _T(T), _init_state() {
         _init_state << p.get<0>(), p.get<1>(), theta, v, a, omega;
     }
 
     inline const Vector6& initial_state() const { return _init_state; }
-    inline TFloat T() const { return _T; }
+    inline TRel T() const { return _T; }
 
-    Point point_at(TFloat t) const;
-    inline TFloat tangent_at(TFloat t) const
+    Point point_at(TRel t) const;
+    inline TRel tangent_at(TRel t) const
     {
         return /*theta*/ _init_state(2) + /*omega*/ _init_state(5) * t;
     }
-    Vector2 velocity_at(TFloat t) const;
+    Vector2 velocity_at(TRel t) const;
 
-    Trajectory periodize(TFloat interval) const;
+    Trajectory periodize(TRel interval) const;
 };
-// TODO: spline interpolated paths are also parametric paths
 
 // ==================================== Hybrid paths ====================================
 
@@ -362,11 +382,11 @@ struct HeteroSegment
     SegmentType type;
 
     /// Params for the segments, see SegmentType for details
-    std::vector<TFloat> params;
+    std::vector<TRel> params;
 
-    TFloat length (const Point &start, const Point &end) const;
-    Point point_at (const Point &start, const Point &end, TFloat fraction) const;
-    TFloat tangent_at (const Point &start, const Point &end, TFloat fraction) const;
+    TRel length (const Point &start, const Point &end) const;
+    Point point_at (const Point &start, const Point &end, TRel fraction) const;
+    TRel tangent_at (const Point &start, const Point &end, TRel fraction) const;
 };
 
 class HeteroPath
@@ -374,10 +394,10 @@ class HeteroPath
 protected:
     std::vector<Point> _points;
     std::vector<HeteroSegment> _segments;
-    std::vector<TFloat> _distance; // same as Path::_distance
+    std::vector<TRel> _distance; // same as Path::_distance
 
     /// Update _distance values
-    void update_distance(TFloat s0 = 0);
+    void update_distance(TRel s0 = 0);
 
 public:
     HeteroPath() {}
@@ -385,7 +405,7 @@ public:
         _segments(path.size(), HeteroSegment { SegmentType::Line, {} }) {}
     inline HeteroPath(Path&& path) : _points(std::move(path._line)), _distance(std::move(path._distance)),
         _segments(path.size(), HeteroSegment { SegmentType::Line, {} }) {}
-    inline HeteroPath(const std::vector<Point> &points, const std::vector<HeteroSegment> &segments, TFloat s0 = 0) :
+    inline HeteroPath(const std::vector<Point> &points, const std::vector<HeteroSegment> &segments, TRel s0 = 0) :
         _points(points), _segments(segments) { update_distance(); }
 
     friend class PathPosition;
@@ -398,33 +418,33 @@ public:
     /// number of segments
     inline std::size_t size() const { return _segments.size(); }
     /// total length of the hetero path
-    inline TFloat length() const { return _distance.back(); }
+    inline TRel length() const { return _distance.back(); }
     /// size of each segment
-    inline std::vector<TFloat> segment_lengths() const
+    inline std::vector<TRel> segment_lengths() const
     {
-        std::vector<TFloat> lengths(size());
+        std::vector<TRel> lengths(size());
         for (int i = 1; i < _points.size(); i++)
             lengths[i-1] = _distance[i] - _distance[i-1];
         return lengths;
     }
 
-    Point point_from(TFloat s)
+    Point point_from(TRel s)
     {
         return point_at(PathPosition::from_s(*this, s));
     }
     Point point_at(const PathPosition &pos);
-    TFloat tangent_from(TFloat s)
+    TRel tangent_from(TRel s)
     {
         return tangent_at(PathPosition::from_s(*this, s));
     }
-    TFloat tangent_at(const PathPosition &pos);
+    TRel tangent_at(const PathPosition &pos);
 
     /// Convert to Path by only rasterizing curves (excl. line segment)
     /// If resolution <= 0, then the result will be directly generated from vertices
-    Path rasterize(TFloat resolution = 0) const;
+    Path rasterize(TRel resolution = 0) const;
 
     /// Return the path with each segment's length less than the given resolution
-    HeteroPath densify(TFloat resolution) const;
+    HeteroPath densify(TRel resolution) const;
 };
 
 // ==================================== frenet paths ====================================
@@ -458,12 +478,12 @@ namespace frenet
 
 // ==================================== binary functions ====================================
 
-inline TFloat distance(const Point &lhs, const Point &rhs) { return boost::geometry::distance(lhs, rhs); }
-inline TFloat distance(const Path &lhs, const Point &rhs) { return std::abs(lhs.project(rhs).first); }
+inline TRel distance(const Point &lhs, const Point &rhs) { return boost::geometry::distance(lhs, rhs); }
+inline TRel distance(const Path &lhs, const Point &rhs) { return std::abs(lhs.project(rhs).first); }
 inline PathPosition arg_distance(const Path &lhs, const Point &rhs) { return lhs.project(rhs).second; }
 
 /// Return the closest distance at the same time point between two trajectories
-TFloat tdistance(const Trajectory &lhs, const Trajectory &rhs);
+TRel tdistance(const Trajectory &lhs, const Trajectory &rhs);
 
 std::vector<Point> intersection(const Path &lhs, const Path &rhs);
 // TODO: make the intersection result sorted?

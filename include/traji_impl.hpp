@@ -9,7 +9,7 @@ namespace traji
     namespace line
     {
         /// Get the point that meets (p-p0) = fraction * (p1-p0)
-        inline Point interpolate(const Point &p0, const Point &p1, TFloat fraction)
+        inline Point interpolate(const Point &p0, const Point &p1, TRel fraction)
         {
             auto x0 = p0.get<0>(), y0 = p0.get<1>();
             auto x1 = p1.get<0>(), y1 = p1.get<1>();
@@ -19,7 +19,7 @@ namespace traji
         /// Calculate the signed distance from point to the segment **line**
         /// @return (distance to line, fraction of the foot point)
         /// The distance is positive if the point is at left hand side of the direction of line (p0 -> p1)
-        inline pair<TFloat, TFloat> sdistance(const Point &p0, const Point &p1, const TFloat l, const Point &p)
+        inline pair<TRel, TRel> sdistance(const Point &p0, const Point &p1, const TRel l, const Point &p)
         {
             auto x0 = p0.get<0>(), y0 = p0.get<1>();
             auto x1 = p1.get<0>(), y1 = p1.get<1>();
@@ -30,7 +30,7 @@ namespace traji
             // if two points are the same one
             if (l == 0)
             {
-                TFloat ds = hypot(x - x0, y - y0);
+                TRel ds = hypot(x - x0, y - y0);
                 return make_pair(ds, 0);
             }
 
@@ -40,13 +40,13 @@ namespace traji
             return make_pair(ds, d0 / l);
         }
 
-        inline TFloat tangent(const Point &p0, const Point &p1)
+        inline TRel tangent(const Point &p0, const Point &p1)
         {
             return atan2(p1.get<1>() - p0.get<1>(), p1.get<0>() - p0.get<0>());
         }
 
         /// Convert the sdistance to normal unsigned (squared) distance
-        inline TFloat distance2(const pair<TFloat, TFloat> &sdist, const TFloat l)
+        inline TRel distance2(const pair<TRel, TRel> &sdist, const TRel l)
         {
             auto ds = sdist.first, d0 = sdist.second * l;
             if (sdist.second < 0)
@@ -64,13 +64,13 @@ namespace traji
         struct ArcParams
         {
             Point center;
-            TFloat radius;
-            TFloat angle; // angle < 0 means center is on the right of the line
-            TFloat start_angle;
+            TRel radius;
+            TRel angle; // angle < 0 means center is on the right of the line
+            TRel start_angle;
         };
 
         /// Wrap the input angle to -pi~pi range
-        inline TFloat warp_angle(TFloat angle)
+        inline TRel warp_angle(TRel angle)
         {
             return fmod(angle + pi, 2 * pi) - pi;
         }
@@ -78,7 +78,7 @@ namespace traji
         /// Solve the parameters of the smoothing arc between two adjacent segments
         inline ArcParams solve_smooth(
             const Point &p0, const Point &pivot, const Point &p1,
-            TFloat l0, TFloat l1, TFloat smooth_radius)
+            TRel l0, TRel l1, TRel smooth_radius)
         {
             auto tan1 = line::tangent(p0, pivot);
             auto tan2 = line::tangent(pivot, p1);
@@ -87,19 +87,19 @@ namespace traji
             auto half = abs(turn_angle / 2);
             auto p2c_dist = smooth_radius / cos(half);
 
-            TFloat radius = smooth_radius * tan(half);
-            TFloat angle_start = tan1 + (turn_angle > 0 ? -pi2 : pi2);
-            TFloat angle_mid = angle_start + (turn_angle > 0 ? half : -half);
+            TRel radius = smooth_radius * tan(half);
+            TRel angle_start = tan1 + (turn_angle > 0 ? -pi2 : pi2);
+            TRel angle_mid = angle_start + (turn_angle > 0 ? half : -half);
 
             Point center(pivot.get<0>() - p2c_dist * cos(angle_mid),
                          pivot.get<1>() - p2c_dist * sin(angle_mid));
 
-            TFloat angle = pi - abs(turn_angle);
+            TRel angle = pi - abs(turn_angle);
 
             return ArcParams {center, radius, turn_angle > 0 ? angle : -angle, angle_start};
         }
 
-        inline Point interpolate(const ArcParams &params, TFloat fraction)
+        inline Point interpolate(const ArcParams &params, TRel fraction)
         {
             auto angular_pos = params.start_angle + params.angle * fraction;
             return Point(
@@ -108,7 +108,7 @@ namespace traji
             );
         }
 
-        inline TFloat tangent(const ArcParams &params, TFloat fraction)
+        inline TRel tangent(const ArcParams &params, TRel fraction)
         {
             auto angular_pos = params.start_angle + params.angle * fraction;
             return angular_pos + (params.angle > 0 ? pi2 : -pi2);

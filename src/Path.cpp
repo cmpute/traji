@@ -12,12 +12,12 @@ namespace bg = boost::geometry;
 
 namespace traji
 {
-    TFloat PathPosition::to_s(const Path &path) const
+    TRel PathPosition::to_s(const Path &path) const
     {
         return path._distance[segment] + (path._distance[segment+1] - path._distance[segment]) * fraction;
     }
 
-    PathPosition PathPosition::from_s(const Path &path, TFloat s)
+    PathPosition PathPosition::from_s(const Path &path, TRel s)
     {
         auto segment_iter = upper_bound(path._distance.begin(), path._distance.end(), s);
         auto segment_idx = distance(path._distance.begin(), segment_iter) - 1;
@@ -28,7 +28,7 @@ namespace traji
         return PathPosition(segment_idx, (s - s0) / (s1 - s0));
     }
 
-    PathPosition PathPosition::forward(const Path &path, TFloat s) const
+    PathPosition PathPosition::forward(const Path &path, TRel s) const
     {
         if (s < 0) { return backward(path, -s); }
 
@@ -42,7 +42,7 @@ namespace traji
         return PathPosition(i-1, (target_s - s0) / (s1 - s0));
     }
 
-    PathPosition PathPosition::backward(const Path &path, TFloat s) const
+    PathPosition PathPosition::backward(const Path &path, TRel s) const
     {
         if (s < 0) { return forward(path, -s); }
 
@@ -56,7 +56,7 @@ namespace traji
         return PathPosition(i, (target_s - s0) / (s1 - s0));
     }
 
-    void Path::update_distance(TFloat s0)
+    void Path::update_distance(TRel s0)
     {
         if (_line.size() == 1) // Fix invalid line string (only 1 point)
         {
@@ -64,12 +64,12 @@ namespace traji
             return;
         }
 
-        TFloat s = s0;
+        TRel s = s0;
         _distance.resize(_line.size());
         _distance[0] = s0;
         for (int i = 1; i < _line.size(); i++)
         {
-            TFloat d = distance(_line[i-1], _line[i]);
+            TRel d = distance(_line[i-1], _line[i]);
             if (d > 1e-6) { // 1e-6 is approximately 8*epsilon, the distance() function
                             // can produce several epsilons even if the two points are the same
                 s += d;
@@ -84,12 +84,12 @@ namespace traji
         }
     }
 
-    vector<PathPosition> PathPosition::from_s(const Path &path, const vector<TFloat> &s_list)
+    vector<PathPosition> PathPosition::from_s(const Path &path, const vector<TRel> &s_list)
     {
         vector<PathPosition> result;
         result.reserve(s_list.size());
 
-        TFloat cur_s = 0;
+        TRel cur_s = 0;
         size_t cur_idx = 1; // index of first point that has s larger than cur_s
         for (auto s : s_list)
             if (s < cur_s)
@@ -116,14 +116,14 @@ namespace traji
         );
     }
 
-    TFloat Path::tangent_at(const PathPosition &pos) const
+    TRel Path::tangent_at(const PathPosition &pos) const
     {
         return line::tangent(
             _line[pos.segment], _line[pos.segment+1]
         );
     }
 
-    TFloat Path::solve_curvature(size_t point_idx) const
+    TRel Path::solve_curvature(size_t point_idx) const
     {
         assert (point_idx >= 1 && point_idx <= _line.size() - 2);
 
@@ -149,9 +149,9 @@ namespace traji
         return 2*(dx_p*dy_n - dy_p*dx_n) / (ln * lp * lnp);
     }
 
-    TFloat Path::curvature_at(const PathPosition &pos) const
+    TRel Path::curvature_at(const PathPosition &pos) const
     {
-        TFloat curv_next, curv_prev;
+        TRel curv_next, curv_prev;
         if (pos.segment == 0) {
             curv_prev = 0;
         } else {
@@ -163,22 +163,22 @@ namespace traji
             curv_next = solve_curvature(pos.segment + 1);
         }
 
-        auto fraction = min<TFloat>(1., max<TFloat>(0., pos.fraction)); // clip fraction
+        auto fraction = min<TRel>(1., max<TRel>(0., pos.fraction)); // clip fraction
         return curv_prev * (1 - fraction) + curv_next * fraction;
     }
 
-    TFloat Path::interpolate_at(const std::vector<TFloat> &values, const PathPosition &pos) const
+    TRel Path::interpolate_at(const std::vector<TRel> &values, const PathPosition &pos) const
     {
         assert (values.size() == size());
         return values[pos.segment] * pos.fraction + values[pos.segment+1] * (1 - pos.fraction);
     }
 
-    pair<TFloat, PathPosition> Path::project(const Point &point) const
+    pair<TRel, PathPosition> Path::project(const Point &point) const
     {
         assert(!_line.empty()); // calculate projection on an empty path is illegal
 
-        vector<pair<TFloat, TFloat>> dists(_line.size() - 1);
-        vector<TFloat> comp_dists(_line.size() - 1); // actual distance for comparison
+        vector<pair<TRel, TRel>> dists(_line.size() - 1);
+        vector<TRel> comp_dists(_line.size() - 1); // actual distance for comparison
         for (int i = 1; i < _line.size(); i++)
         {
             // calculate signed distance
@@ -197,7 +197,7 @@ namespace traji
             PathPosition(min_idx, dists[min_idx].second));
     }
 
-    Path Path::densify(TFloat resolution) const
+    Path Path::densify(TRel resolution) const
     {
         if (size() == 0)
             return *this;
@@ -212,7 +212,7 @@ namespace traji
             else
             {
                 for (size_t j = 1; j <= mul; j++)
-                    result._line.push_back(line::interpolate(_line[i-1], _line[i], (TFloat) j / mul));
+                    result._line.push_back(line::interpolate(_line[i-1], _line[i], (TRel) j / mul));
             }
         }
 
@@ -220,11 +220,11 @@ namespace traji
         return result;
     }
 
-    vector<TFloat> Path::calc_feasible_radius(TFloat smooth_radius) const
+    vector<TRel> Path::calc_feasible_radius(TRel smooth_radius) const
     {
         assert(_line.size() > 2);
-        vector<TFloat> radius(_line.size() - 2, smooth_radius);
-        vector<TFloat> seglen = segment_lengths();
+        vector<TRel> radius(_line.size() - 2, smooth_radius);
+        vector<TRel> seglen = segment_lengths();
 
         // sort segment lengths
         vector<size_t> indices(seglen.size());
@@ -254,7 +254,7 @@ namespace traji
         return radius;
     }
 
-    Path Path::respacing0(TFloat resolution) const
+    Path Path::respacing0(TRel resolution) const
     {
         assert (_line.size() >= 2);
 
@@ -296,7 +296,7 @@ namespace traji
         return result;
     }
 
-    Path Path::respacing(TFloat resolution, TFloat smooth_radius) const
+    Path Path::respacing(TRel resolution, TRel smooth_radius) const
     {
         // shortcuts
         if (_line.size() == 0)
@@ -306,12 +306,12 @@ namespace traji
 
         Path result;
         result._line.push_back(_line.front());
-        vector<TFloat> seglen = segment_lengths();
+        vector<TRel> seglen = segment_lengths();
 
         auto residual_s = resolution;
-        vector<TFloat> feas_radius = calc_feasible_radius(smooth_radius);
+        vector<TRel> feas_radius = calc_feasible_radius(smooth_radius);
         auto segment_length = seglen[0] - feas_radius[0]; // current effective segment length
-        TFloat segment_soffset = 0; // start offset
+        TRel segment_soffset = 0; // start offset
         size_t segment_idx = 0;
 
         bool on_arc = false;
@@ -381,7 +381,7 @@ namespace traji
         return result;
     }
 
-    HeteroPath Path::smooth(TFloat smooth_radius, SegmentType segtype) const
+    HeteroPath Path::smooth(TRel smooth_radius, SegmentType segtype) const
     {
         HeteroPath result;
 
@@ -392,7 +392,7 @@ namespace traji
         {
             result._points = { _line[0], _line[1] };
             result._segments.emplace_back(HeteroSegment {
-                SegmentType::Line, std::vector<TFloat>()
+                SegmentType::Line, std::vector<TRel>()
             });
             result._distance = { _distance[0], _distance[1] };
             return result;
@@ -411,7 +411,7 @@ namespace traji
             1 - feas_radius[0] / seglen[0]
         ));
         result._segments.emplace_back(HeteroSegment {
-            SegmentType::Line, std::vector<TFloat>()
+            SegmentType::Line, std::vector<TRel>()
         });
         result._distance.emplace_back(seglen.front() - feas_radius.front());
 
@@ -467,14 +467,14 @@ namespace traji
         // add last segment
         result._points.push_back(_line.back());
         result._segments.emplace_back(HeteroSegment {
-            SegmentType::Line, std::vector<TFloat>()
+            SegmentType::Line, std::vector<TRel>()
         });
         result._distance.emplace_back(seglen.back() - feas_radius.back());
 
         return result;
     }
 
-    Path Path::resample_from(const vector<TFloat> &s_list) const
+    Path Path::resample_from(const vector<TRel> &s_list) const
     {
         vector<PathPosition> pos_list = PathPosition::from_s(*this, s_list);
         vector<Point> plist; plist.reserve(s_list.size());
@@ -483,7 +483,7 @@ namespace traji
         return Path(move(plist));
     }
 
-    Path Path::extract_from(TFloat s_start, TFloat s_end) const
+    Path Path::extract_from(TRel s_start, TRel s_end) const
     {
         bool reversed = s_start > s_end;
         if (reversed) {

@@ -8,11 +8,11 @@ using namespace std::placeholders;
 
 namespace traji
 {
-    TFloat PathPosition::to_t(const Trajectory &traj) const
+    TRel PathPosition::to_t(const Trajectory &traj) const
     {
         return traj._timestamps[segment] + (traj._timestamps[segment+1] - traj._timestamps[segment]) * fraction;
     }
-    PathPosition PathPosition::from_t(const Trajectory &traj, TFloat t)
+    PathPosition PathPosition::from_t(const Trajectory &traj, TRel t)
     {
         auto segment_iter = upper_bound(traj._timestamps.begin(), traj._timestamps.end(), t);
         auto segment_idx = distance(traj._timestamps.begin(), segment_iter) - 1;
@@ -24,12 +24,12 @@ namespace traji
     }
 
     // this method is analog to PathPosition::from_s(path, s_list)
-    vector<PathPosition> PathPosition::from_t(const Trajectory &path, const std::vector<TFloat> &t_list)
+    vector<PathPosition> PathPosition::from_t(const Trajectory &path, const std::vector<TRel> &t_list)
     {
         vector<PathPosition> result;
         result.reserve(t_list.size());
 
-        TFloat cur_t = 0;
+        TRel cur_t = 0;
         size_t cur_idx = 1; // index of first point that has s larger than cur_s
         for (auto t : t_list)
             if (t < cur_t)
@@ -52,7 +52,7 @@ namespace traji
     {
         assert (segment_idx >= 0 && segment_idx <= _line.size() - 2);
 
-        TFloat dt = _timestamps[segment_idx+1] - _timestamps[segment_idx];
+        TRel dt = _timestamps[segment_idx+1] - _timestamps[segment_idx];
         Vector2 p1(_line[segment_idx+1].get<0>(), _line[segment_idx+1].get<1>());
         Vector2 p2(_line[segment_idx].get<0>(), _line[segment_idx].get<1>());
         assert(dt != 0);
@@ -69,7 +69,7 @@ namespace traji
         {
             // linear interpolate based on fraction (position)
             Vector2 vel1, vel2;
-            TFloat w1, w2;
+            TRel w1, w2;
             if (pos.fraction < 0.5)
             {
                 vel1 = solve_velocity(pos.segment - 1);
@@ -92,7 +92,7 @@ namespace traji
     {
         assert (point_idx >= 1 && point_idx <= _line.size() - 2);
 
-        TFloat dt = (_timestamps[point_idx+1] - _timestamps[point_idx-1]) / 2;
+        TRel dt = (_timestamps[point_idx+1] - _timestamps[point_idx-1]) / 2;
         Vector2 vel1 = solve_velocity(point_idx - 1);
         Vector2 vel2 = solve_velocity(point_idx);
         assert(dt != 0);
@@ -121,7 +121,7 @@ namespace traji
         }
     }
 
-    Trajectory Trajectory::resample_at(const std::vector<TFloat> &t_list) const
+    Trajectory Trajectory::resample_at(const std::vector<TRel> &t_list) const
     {
         vector<PathPosition> pos_list = PathPosition::from_t(*this, t_list);
         vector<Point> plist; plist.reserve(t_list.size());
@@ -131,12 +131,12 @@ namespace traji
     }
 
     QuinticPolyTrajectory::QuinticPolyTrajectory(
-        TFloat T, const Vector3 &x0, const Vector3 &xT,
+        TRel T, const Vector3 &x0, const Vector3 &xT,
         const Vector3 &y0, const Vector3 &yT, bool relax_sx
     ) : _x_coeffs(), _y_coeffs(), _T(T)
     {
         assert (T > 0);
-        TFloat T3 = T * T * T;
+        TRel T3 = T * T * T;
 
         Vector3 c012x; c012x << x0(0), x0(1), x0(2) / 2;
         Vector3 c012y; c012y << y0(0), y0(1), y0(2) / 2;
@@ -165,9 +165,9 @@ namespace traji
         }
     }
 
-    Point QuinticPolyTrajectory::point_at(TFloat t) const
+    Point QuinticPolyTrajectory::point_at(TRel t) const
     {
-        TFloat x = _x_coeffs(0), y = _y_coeffs(0);
+        TRel x = _x_coeffs(0), y = _y_coeffs(0);
         for (size_t i = 1; i < 6; i++)
         {
             x = x * t + _x_coeffs(i);
@@ -176,9 +176,9 @@ namespace traji
         return Point(x, y);
     }
 
-    Vector2 QuinticPolyTrajectory::velocity_at(TFloat t) const
+    Vector2 QuinticPolyTrajectory::velocity_at(TRel t) const
     {
-        TFloat x = 5 * _x_coeffs(0), y = 5 * _y_coeffs(0);
+        TRel x = 5 * _x_coeffs(0), y = 5 * _y_coeffs(0);
         for (size_t i = 1; i < 5; i++)
         {
             x = x * t + (5-i) * _x_coeffs(i);
@@ -187,9 +187,9 @@ namespace traji
         return Vector2(x, y);
     }
 
-    Vector2 QuinticPolyTrajectory::acceleration_at(TFloat t) const
+    Vector2 QuinticPolyTrajectory::acceleration_at(TRel t) const
     {
-        TFloat x = 20 * _x_coeffs(0), y = 20 * _y_coeffs(0);
+        TRel x = 20 * _x_coeffs(0), y = 20 * _y_coeffs(0);
         for (size_t i = 1; i < 4; i++)
         {
             x = x * t + (5-i) * (4-i) * _x_coeffs(i);
@@ -198,13 +198,13 @@ namespace traji
         return Vector2(x, y);
     }
 
-    TFloat QuinticPolyTrajectory::tangent_at(TFloat t) const
+    TRel QuinticPolyTrajectory::tangent_at(TRel t) const
     {
         auto vel = velocity_at(t);
         return atan2(vel(1), vel(0));
     }
 
-    Trajectory QuinticPolyTrajectory::periodize(TFloat interval) const
+    Trajectory QuinticPolyTrajectory::periodize(TRel interval) const
     {
         auto t = VectorX::LinSpaced((size_t)ceil(_T / interval) + 1, 0, _T).array();
 
@@ -229,14 +229,14 @@ namespace traji
         return result;
     }
 
-    Point CTRATrajectory::point_at(TFloat t) const
+    Point CTRATrajectory::point_at(TRel t) const
     {
-        TFloat x = _init_state(0), y = _init_state(1), th = _init_state(2);
-        TFloat v = _init_state(3), a = _init_state(4), w = _init_state(5);
+        TRel x = _init_state(0), y = _init_state(1), th = _init_state(2);
+        TRel v = _init_state(3), a = _init_state(4), w = _init_state(5);
 
-        TFloat nth = th + w * t;
-        TFloat nv = v + a * t;
-        TFloat nx, ny;
+        TRel nth = th + w * t;
+        TRel nv = v + a * t;
+        TRel nx, ny;
         if (w == 0)
         {
             nx = x + (nv + v)/2 * cos(th) * t;
@@ -250,19 +250,19 @@ namespace traji
         return Point(nx, ny);
     }
 
-    Vector2 CTRATrajectory::velocity_at(TFloat t) const
+    Vector2 CTRATrajectory::velocity_at(TRel t) const
     {
-        TFloat nth = tangent_at(t);
-        TFloat nv = _init_state(3) + _init_state(4) * t;
+        TRel nth = tangent_at(t);
+        TRel nv = _init_state(3) + _init_state(4) * t;
         return Vector2(nv * cos(nth), nv * sin(nth));
     }
 
-    Trajectory CTRATrajectory::periodize(TFloat interval) const
+    Trajectory CTRATrajectory::periodize(TRel interval) const
     {
         auto t = VectorX::LinSpaced((size_t)ceil(_T / interval) + 1, 0, _T).array();
 
-        TFloat x = _init_state(0), y = _init_state(1), th = _init_state(2);
-        TFloat v = _init_state(3), a = _init_state(4), w = _init_state(5);
+        TRel x = _init_state(0), y = _init_state(1), th = _init_state(2);
+        TRel v = _init_state(3), a = _init_state(4), w = _init_state(5);
 
         auto nth = th + w * t;
         auto nv = v + a * t;
@@ -290,22 +290,22 @@ namespace traji
         return result;
     }
 
-    TFloat tdistance(const Trajectory &lhs, const Trajectory &rhs)
+    TRel tdistance(const Trajectory &lhs, const Trajectory &rhs)
     {
         // TODO: this implementation is not correct, we need 3D segment distance
 
-        TFloat min_dist = numeric_limits<TFloat>::max();
+        TRel min_dist = numeric_limits<TRel>::max();
         vector<PathPosition> rhs_pos = PathPosition::from_t(lhs, rhs.timestamps());
         for (int i = 0; i < rhs_pos.size(); i++)
         {
-            TFloat dist = distance(lhs.point_at(rhs_pos[i]), rhs.vertices()[i]);
+            TRel dist = distance(lhs.point_at(rhs_pos[i]), rhs.vertices()[i]);
             min_dist = min(min_dist, dist);
         }
 
         vector<PathPosition> lhs_pos = PathPosition::from_t(rhs, lhs.timestamps());
         for (int i = 0; i < lhs_pos.size(); i++)
         {
-            TFloat dist = distance(rhs.point_at(lhs_pos[i]), lhs.vertices()[i]);
+            TRel dist = distance(rhs.point_at(lhs_pos[i]), lhs.vertices()[i]);
             min_dist = min(min_dist, dist);
         }
         return min_dist;
