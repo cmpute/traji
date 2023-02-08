@@ -62,11 +62,9 @@ PYBIND11_MODULE(_bindings, m) {
     py::class_<PathPosition>(m, "PathPosition")
         .def(py::init<>())
         .def(py::init<size_t, TRel>(), py::arg("segment"), py::arg("fraction"))
-        .def(py::init<size_t, size_t, TRel>(), py::arg("component"), py::arg("segment"), py::arg("fraction"))
         .def("__str__", py::overload_cast<const PathPosition&>(to_string))
         .def("__repr__", [](const PathPosition &pos) { 
             stringstream ss; ss << "<PathPosition ";
-            ss << pos.component << ", ";
             ss << pos.segment << ", ";
             ss << pos.fraction << ">";
             return ss.str();
@@ -77,17 +75,16 @@ PYBIND11_MODULE(_bindings, m) {
         .def(py::self > py::self)
         .def(py::self <= py::self)
         .def(py::self >= py::self)
-        .def_readwrite("component", &PathPosition::component)
         .def_readwrite("segment", &PathPosition::segment)
         .def_readwrite("fraction", &PathPosition::fraction)
         .def("to_s", py::overload_cast<const Path&>(&PathPosition::to_s, py::const_))
         .def("to_s", py::overload_cast<const HeteroPath&>(&PathPosition::to_s, py::const_))
-        .def_static("from_s", py::overload_cast<const Path&, TRel>(PathPosition::from_s))
-        .def_static("from_s", py::overload_cast<const HeteroPath&, TRel>(PathPosition::from_s))
-        .def_static("from_s", py::overload_cast<const Path&, const vector<TRel>&>(PathPosition::from_s))
+        .def_static("from_s", py::overload_cast<const Path&, TAbs>(PathPosition::from_s))
+        .def_static("from_s", py::overload_cast<const HeteroPath&, TAbs>(PathPosition::from_s))
+        .def_static("from_s", py::overload_cast<const Path&, const vector<TAbs>&>(PathPosition::from_s))
         .def("to_t", &PathPosition::to_t)
-        .def_static("from_t", py::overload_cast<const Trajectory&, TRel>(PathPosition::from_t))
-        .def_static("from_t", py::overload_cast<const Trajectory&, const vector<TRel>&>(PathPosition::from_t))
+        .def_static("from_t", py::overload_cast<const Trajectory&, TAbs>(PathPosition::from_t))
+        .def_static("from_t", py::overload_cast<const Trajectory&, const vector<TAbs>&>(PathPosition::from_t))
         .def("forward", &PathPosition::forward)
         .def("backward", &PathPosition::backward)
         ;
@@ -155,8 +152,8 @@ PYBIND11_MODULE(_bindings, m) {
     py::class_<Trajectory, Path>(m, "Trajectory")
         .def(py::init<>())
         .def(py::init<const Trajectory&>())
-        .def(py::init<const Path&, const vector<TRel>&>())
-        .def(py::init<const Path&, TRel, TRel>())
+        .def(py::init<const Path&, const vector<TAbs>&>())
+        .def(py::init<const Path&, TAbs, TRel>())
         .def("__str__", py::overload_cast<const Trajectory&>(&to_string))
         .def("__repr__", [](const Trajectory& t) {
             stringstream ss; ss << "<Trajectory with " << t.size() << " points>"; return ss.str();

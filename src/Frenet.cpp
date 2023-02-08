@@ -44,7 +44,7 @@ Path from_cartesian(const Path &ref, const Path &path)
 
 Path to_cartesian(const Path &ref, const Path &path)
 {
-    vector<TRel> s_list; s_list.reserve(path.size() + 1);
+    vector<TAbs> s_list; s_list.reserve(path.size() + 1);
     transform(path.vertices().begin(), path.vertices().end(), back_inserter(s_list),
               [](const Point &p) { return p.get<0>(); });
 
@@ -58,7 +58,7 @@ Path to_cartesian(const Path &ref, const Path &path)
 Trajectory to_cartesian_rescale(const Path &ref, const Trajectory &traj)
 {
     // Calculate the original path without resampling
-    vector<TRel> s_list; s_list.reserve(traj.size() + 1);
+    vector<TAbs> s_list; s_list.reserve(traj.size() + 1);
     transform(traj.vertices().begin(), traj.vertices().end(), back_inserter(s_list),
               [](const Point &p) { return p.get<0>(); });
 
@@ -78,7 +78,7 @@ Trajectory to_cartesian_rescale(const Path &ref, const Trajectory &traj)
         scaled_seglen.push_back(seglen[i] * scale);
 
     // Calculate new points
-    vector<TRel> new_s_list(segcount+1);
+    vector<TAbs> new_s_list(segcount+1);
     partial_sum(scaled_seglen.begin(), scaled_seglen.end(), new_s_list.begin(), plus<TRel>());
     return Trajectory(skewed_path.resample_from(new_s_list), traj.timestamps());
 }

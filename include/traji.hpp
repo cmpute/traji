@@ -15,7 +15,7 @@
 /* forward declarations */
 namespace traji {
 
-/// @brief Float type used for relative coordinates
+/// @brief Float type used for relative coordinates and values
 typedef float TRel;
 
 /// @brief Float type used for absolute coordinates
@@ -52,8 +52,14 @@ class CTRATrajectory;
 /* helper functions for boost.geometry */
 namespace boost { namespace geometry { namespace model
 {
-inline bool operator==(const traji::Point& lhs, const traji::Point& rhs) { return lhs.get<0>() == rhs.get<0>() && lhs.get<1>() == rhs.get<1>(); }
-inline bool operator!=(const traji::Point& lhs, const traji::Point& rhs) { return !(lhs == rhs); }
+    inline bool operator==(const traji::Point& lhs, const traji::Point& rhs)
+    {
+        return lhs.get<0>() == rhs.get<0>() && lhs.get<1>() == rhs.get<1>();
+    }
+    inline bool operator!=(const traji::Point& lhs, const traji::Point& rhs)
+    {
+        return !(lhs == rhs);
+    }
 }}} // namespace boost.geometry.model
 
 /* main implementations */
@@ -96,46 +102,53 @@ enum class SegmentType
 // TODO: implement comparison operators
 struct PathPosition
 {
-    std::size_t component; // index in multi-path collection
     std::size_t segment; // segment index in the line string
     TRel fraction; // fraction of the point in the segment
 
-    PathPosition() : component(0), segment(0), fraction(0.0) {}
-    PathPosition(std::size_t component_, std::size_t segment_, TRel fraction_)
-        : component(component_), segment(segment_), fraction(fraction_) {}
+    PathPosition() : segment(0), fraction(0.0) {}
     PathPosition(std::size_t segment_, TRel fraction_)
-        : component(0), segment(segment_), fraction(fraction_) {}
+        : segment(segment_), fraction(fraction_) {}
 
     /// Convert the position to the distance to the beginning
-    TRel to_s(const Path &path) const;
-    TRel to_s(const HeteroPath &path) const;
+    TAbs to_s(const Path &path) const;
+    TAbs to_s(const HeteroPath &path) const;
 
     /// Convert the distance to the beginning to s
-    static PathPosition from_s(const Path &path, TRel s);
-    static PathPosition from_s(const HeteroPath &path, TRel s);
-    static std::vector<PathPosition> from_s(const Path &path, const std::vector<TRel> &s_list);
+    static PathPosition from_s(const Path &path, TAbs s);
+    static PathPosition from_s(const HeteroPath &path, TAbs s);
+    static std::vector<PathPosition> from_s(const Path &path, const std::vector<TAbs> &s_list);
 
     /// Convert the position to the distance to the timestamp
-    TRel to_t(const Trajectory &traj) const;
-    static PathPosition from_t(const Trajectory &traj, TRel t);
-    static std::vector<PathPosition> from_t(const Trajectory &path, const std::vector<TRel> &t_list);
+    TAbs to_t(const Trajectory &traj) const;
+    static PathPosition from_t(const Trajectory &traj, TAbs t);
+    static std::vector<PathPosition> from_t(const Trajectory &path, const std::vector<TAbs> &t_list);
 
     /// Move the position forward along the path. Note that this function is only efficient
     /// when the distance is not too large. Otherwise please use to_s() and from_s()
     PathPosition forward(const Path &path, TRel s) const;
     PathPosition backward(const Path &path, TRel s) const;
+private:
+    TRel to_rel_s(const Path &path) const;
+    static PathPosition from_rel_s(const Path &path, TRel s);;
 };
 
 /// (immutable) non-parametric linestring
 class Path
 {
+public:
+    /// @brief Distance of the first point along a certain path, default to 0. All s values will be offset by this amount when querying.
+    TAbs s0 = 0;
+
 protected:
-    LineString _line; // the geometry of the line string
-    std::vector<TRel> _distance; // the distance of each vertices to the first vertex along the line.
-                                   // first value is zero by default, but can be assigned differently.
+    // The geometry of the line string
+    LineString _line;
+
+    // The distance of each vertices )starting from the second) to the first vertex along the line.
+    // It has a length of n-1, where n is the number of vetices.
+    std::vector<TRel> _distance;
 
     /// Recalculate the _distance values
-    void update_distance(TRel s0 = 0);
+    void update_distance();
 
     /// Calculate feasible smooth radius given the input as max limit
     std::vector<TRel> calc_feasible_radius(TRel smooth_radius) const;
@@ -153,7 +166,7 @@ public:
 
     inline Path() {}
     template<typename Iterator>
-    inline Path(Iterator begin, Iterator end, TRel s0 = 0) : _line(begin, end) { update_distance(s0); }
+    inline Path(Iterator begin, Iterator end, TRel s0 = 0) : _line(begin, end) { update_distance(); }
     inline Path(std::initializer_list<Point> l) : Path(l.begin(), l.end()) {}
     inline Path(const std::vector<Point> &l, TRel s0 = 0): Path(l.begin(), l.end(), s0) {}
     inline Path(std::vector<Point> &&l, TRel s0 = 0): Path(l.begin(), l.end(), s0) {}
@@ -179,14 +192,14 @@ public:
     inline const LineString& vertices() const { return _line; }
 
     /// Get the point indicated by the distance from the beginning
-    inline Point point_from(TRel s) const
+    inline Point point_from(TAbs s) const
     {
         return point_at(PathPosition::from_s(*this, s));
     }
     Point point_at(const PathPosition &pos) const;
 
     /// Get the tagent at the point indicated by the distance from the beginning
-    inline TRel tangent_from(TRel s) const
+    inline TRel tangent_from(TAbs s) const
     {
         return tangent_at(PathPosition::from_s(*this, s));
     }
@@ -195,14 +208,14 @@ public:
     /// Get the curvature at given position. The curvature is precise on the vertices, and
     /// interpolated on segments. The curvature is positive if the center is to the left
     /// of the path.
-    inline TRel curvature_from(TRel s) const
+    inline TRel curvature_from(TAbs s) const
     {
         return curvature_at(PathPosition::from_s(*this, s));
     }
     TRel curvature_at(const PathPosition &pos) const;
 
     /// Get the value interpolated by the distance from the beginning
-    inline TRel interpolate_from(const std::vector<TRel> &values, TRel s) const
+    inline TRel interpolate_from(const std::vector<TRel> &values, TAbs s) const
     {
         return interpolate_at(values, PathPosition::from_s(*this, s));
     }
@@ -228,20 +241,29 @@ public:
 
     /// Return a path represented by a list of distance to start. 
     /// The best performance is achieved when s_list is sorted ascendingly.
-    Path resample_from(const std::vector<TRel> &s_list) const;
+    Path resample_from(const std::vector<TAbs> &s_list) const;
 
     /// Extract a part of the path (between s_start and s_end).
     /// The result path will contains all the way points between s_start and s_end,
     /// and the two end points (with extrapolating)
-    Path extract_from(TRel s_start, TRel s_end) const;
+    Path extract_from(TAbs s_start, TAbs s_end) const;
 };
 
 /// non-parametric linestring with time, assuming constant acceleration
 /// the values will still be interpolated based on position
 class Trajectory : public Path
 {
+public:
+    /// @brief Timestamp of the first point, default to 0. All t values will be offset by this amount when querying.
+    TAbs t0;
+
 protected:
-    std::vector<TRel> _timestamps; // the timestamp over each point
+    // The time elapsed from t0 at each vertices, ie timestamps but subtracted by t0.
+    // It has a length of n-1, where n is the number of vetices.
+    std::vector<TRel> _durations;
+    
+    // Calculate the duration values
+    std::vector<TRel> calc_duration(std::vector<TAbs> &&timestamps);
 
 private:
     Vector2 solve_velocity(size_t segment_idx) const;
@@ -253,26 +275,26 @@ public:
     friend class CTRATrajectory;
 
     inline Trajectory() {}
-    inline Trajectory(const Path& path, const std::vector<TRel> &timestamps) : Path(path), _timestamps(timestamps) {}
-    inline Trajectory(Path&& path, std::vector<TRel> &&timestamps) : Path(path), _timestamps(timestamps) {}
+    inline Trajectory(const Path& path, const std::vector<TAbs> &timestamps) : Path(path), _durations(calc_duration(std::vector<TAbs>(timestamps))) {}
+    inline Trajectory(Path&& path, std::vector<TAbs> &&timestamps) : Path(path), _durations(calc_duration(std::vector<TAbs>(timestamps))) {}
     template<typename Iterator, typename TIterator>
-    inline Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end, TRel s0 = 0)
-        : Path(begin, end, s0), _timestamps(t_begin, t_end) { }
+    inline Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end, TAbs s0 = 0)
+        : Path(begin, end, s0), _durations(calc_duration(std::vector<TAbs>(t_begin, t_end))) { }
 
     /// @brief Create the trajectory based on a path, assuming that the speed is constant along the trajectory.
     /// @param path The reference path
     /// @param t0 The initial timestamp
     /// @param speed The speed in the trajectory
-    inline Trajectory(const Path& path, TRel t0, TRel speed) : Path(path) {
-        _timestamps.reserve(_distance.size());
+    inline Trajectory(const Path& path, TAbs t0, TRel speed) : Path(path) {
+        _durations.reserve(_distance.size());
         float d0 = _distance.front();
         for (auto &d : _distance) {
-            _timestamps.push_back(t0 + (d - d0) / speed);
+            _durations.push_back(t0 + (d - d0) / speed);
         }
     }
 
-    inline const std::vector<TRel>& timestamps() const { return _timestamps; }
-    inline const TRel duration() const { return _timestamps.back() - _timestamps.front(); }
+    inline const std::vector<TAbs>& timestamps() const; // TODO: implement
+    inline const TRel duration() const { return _durations.back() - _durations.front(); }
 
     /// Get the point indicated by the time
     using Path::point_at;
@@ -309,7 +331,7 @@ public:
 
     /// Return a path represented by a list of timestamp. 
     /// The best performance is achieved when t_list is sorted ascendingly.
-    Trajectory resample_at(const std::vector<TRel> &t_list) const;
+    Trajectory resample_at(const std::vector<TAbs> &t_list) const;
 };
 
 
@@ -428,12 +450,12 @@ public:
         return lengths;
     }
 
-    Point point_from(TRel s)
+    Point point_from(TAbs s)
     {
         return point_at(PathPosition::from_s(*this, s));
     }
     Point point_at(const PathPosition &pos);
-    TRel tangent_from(TRel s)
+    TRel tangent_from(TAbs s)
     {
         return tangent_at(PathPosition::from_s(*this, s));
     }
@@ -493,14 +515,12 @@ std::vector<std::pair<PathPosition, PathPosition>> arg_intersection(const Path &
 
 inline bool operator==(const PathPosition& lhs, const PathPosition& rhs)
 {
-    return std::tie(lhs.component, lhs.segment, lhs.fraction)
-        == std::tie(rhs.component, rhs.segment, rhs.fraction);
+    return lhs.segment == rhs.segment && lhs.fraction == rhs.fraction;
 }
 inline bool operator!=(const PathPosition& lhs, const PathPosition& rhs) { return !(lhs == rhs); }
 inline bool operator< (const PathPosition& lhs, const PathPosition& rhs)
 {
-    return std::tie(lhs.component, lhs.segment, lhs.fraction)
-        < std::tie(rhs.component, rhs.segment, rhs.fraction);
+    return lhs.segment == rhs.segment && lhs.fraction == rhs.fraction;
 }
 inline bool operator> (const PathPosition& lhs, const PathPosition& rhs) { return rhs < lhs; }
 inline bool operator<=(const PathPosition& lhs, const PathPosition& rhs) { return !(lhs > rhs); }

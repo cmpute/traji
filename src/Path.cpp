@@ -12,27 +12,44 @@ namespace bg = boost::geometry;
 
 namespace traji
 {
-    TRel PathPosition::to_s(const Path &path) const
+    TRel PathPosition::to_rel_s(const Path &path) const
     {
-        return path._distance[segment] + (path._distance[segment+1] - path._distance[segment]) * fraction;
+        TRel rel_s = (path._distance[segment+1] - path._distance[segment]) * fraction;
+        if (segment != 0) {
+            rel_s += path._distance[segment] - 1;
+        }
+        return rel_s;
+    }
+    TAbs PathPosition::to_s(const Path &path) const
+    {
+        return to_rel_s(path) + path.s0;
     }
 
-    PathPosition PathPosition::from_s(const Path &path, TRel s)
+    PathPosition PathPosition::from_rel_s(const Path &path, TRel s)
     {
+        if (s < 0) {
+            return PathPosition(0, s / path._distance.front());
+        }
+
         auto segment_iter = upper_bound(path._distance.begin(), path._distance.end(), s);
-        auto segment_idx = distance(path._distance.begin(), segment_iter) - 1;
-        segment_idx = min((long)path.size() - 1L, max(0L, segment_idx)); // clip the segment index
+        auto segment_idx = distance(path._distance.begin(), segment_iter);
+        segment_idx = min((long)path.size() - 1L, segment_idx); // clip the segment index
 
         auto s0 = path._distance[segment_idx], s1 = path._distance[segment_idx+1];
 
         return PathPosition(segment_idx, (s - s0) / (s1 - s0));
     }
+    
+    PathPosition PathPosition::from_s(const Path &path, TAbs s) {
+        return from_rel_s(path, s - path.s0);
+    }
 
     PathPosition PathPosition::forward(const Path &path, TRel s) const
     {
+        if (s == 0) { return *this; }
         if (s < 0) { return backward(path, -s); }
 
-        auto current_s = to_s(path);
+        auto current_s = to_rel_s(path);
         auto target_s = current_s + s;
         int i = segment;
         for (; i < path.size(); i++)
@@ -44,32 +61,33 @@ namespace traji
 
     PathPosition PathPosition::backward(const Path &path, TRel s) const
     {
+        if (s == 0) { return *this; }
         if (s < 0) { return forward(path, -s); }
 
-        auto current_s = to_s(path);
+        auto current_s = to_rel_s(path);
         auto target_s = current_s - s;
         int i = segment;
-        for (; i > 0; i--)
+        for (; i >= 0; i--)
             if (path._distance[i] < target_s) { break; }
 
         auto s0 = path._distance[i], s1 = path._distance[i+1];
         return PathPosition(i, (target_s - s0) / (s1 - s0));
     }
 
-    void Path::update_distance(TRel s0)
+    void Path::update_distance()
     {
-        if (_line.size() == 1) // Fix invalid line string (only 1 point)
+        if (_line.size() <= 1) // Fix invalid line string (only 1 point)
         {
             _line.clear();
             return;
         }
 
         TRel s = s0;
-        _distance.resize(_line.size());
-        _distance[0] = s0;
-        for (int i = 1; i < _line.size(); i++)
+        _distance.resize(_line.size() - 1);
+        for (size_t i = 0; i < _distance.size(); i++)
         {
-            TRel d = distance(_line[i-1], _line[i]);
+            size_t j = i + 1;
+            TRel d = distance(_line[i], _line[j]);
             if (d > 1e-6) { // 1e-6 is approximately 8*epsilon, the distance() function
                             // can produce several epsilons even if the two points are the same
                 s += d;
@@ -77,23 +95,25 @@ namespace traji
             } else {
                 // remove duplicate points to avoid weirdness
                 // TODO: this method will cause problem for Trajectory
-                _line.erase(_line.begin() + i);
-                _distance.erase(_distance.begin() + i);
+                _line.erase(_line.begin() + j);
+                _distance.erase(_distance.begin() + j);
                 i--;
             }
         }
     }
 
-    vector<PathPosition> PathPosition::from_s(const Path &path, const vector<TRel> &s_list)
+    vector<PathPosition> PathPosition::from_s(const Path &path, const vector<TAbs> &s_list)
     {
         vector<PathPosition> result;
         result.reserve(s_list.size());
 
         TRel cur_s = 0;
         size_t cur_idx = 1; // index of first point that has s larger than cur_s
-        for (auto s : s_list)
+        for (auto abs_s : s_list)
+        {
+            TRel s = abs_s - path.s0;
             if (s < cur_s)
-                result.push_back(PathPosition::from_s(path, s));
+                result.push_back(PathPosition::from_rel_s(path, s));
             else
             {
                 while (s > path._distance[cur_idx] && cur_idx < path.size())
@@ -104,6 +124,7 @@ namespace traji
 
                 cur_s = s;
             }
+        }
 
         return result;
     }
@@ -216,7 +237,8 @@ namespace traji
             }
         }
 
-        result.update_distance(_distance[0]);
+        result.s0 = s0;
+        result.update_distance();
         return result;
     }
 
@@ -292,7 +314,8 @@ namespace traji
         // duplicate end point will be removed by update_distance
         result._line.push_back(_line.back());
 
-        result.update_distance(_distance[0]);
+        result.update_distance();
+        result.s0 = s0;
         return result;
     }
 
@@ -377,7 +400,8 @@ namespace traji
         if (residual_s > segment_length)
             result._line.push_back(_line.back());
 
-        result.update_distance(_distance[0]);
+        result.s0 = s0;
+        result.update_distance();
         return result;
     }
 
@@ -394,7 +418,7 @@ namespace traji
             result._segments.emplace_back(HeteroSegment {
                 SegmentType::Line, std::vector<TRel>()
             });
-            result._distance = { _distance[0], _distance[1] };
+            result._distance = { _distance[0] };
             return result;
         }
 
@@ -474,7 +498,7 @@ namespace traji
         return result;
     }
 
-    Path Path::resample_from(const vector<TRel> &s_list) const
+    Path Path::resample_from(const vector<TAbs> &s_list) const
     {
         vector<PathPosition> pos_list = PathPosition::from_s(*this, s_list);
         vector<Point> plist; plist.reserve(s_list.size());
@@ -483,7 +507,7 @@ namespace traji
         return Path(move(plist));
     }
 
-    Path Path::extract_from(TRel s_start, TRel s_end) const
+    Path Path::extract_from(TAbs s_start, TAbs s_end) const
     {
         bool reversed = s_start > s_end;
         if (reversed) {
@@ -576,7 +600,7 @@ namespace std
     string to_string(const traji::PathPosition &pos)
     {
         stringstream ss;
-        ss << "(component " << pos.component << ", segment " << pos.segment << ", fraction " << pos.fraction << ')';
+        ss << "(segment " << pos.segment << ", fraction " << pos.fraction << ')';
         return ss.str();
     }
 }

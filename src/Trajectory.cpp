@@ -8,23 +8,23 @@ using namespace std::placeholders;
 
 namespace traji
 {
-    TRel PathPosition::to_t(const Trajectory &traj) const
+    TAbs PathPosition::to_t(const Trajectory &traj) const
     {
-        return traj._timestamps[segment] + (traj._timestamps[segment+1] - traj._timestamps[segment]) * fraction;
+        return traj._durations[segment] + (traj._durations[segment+1] - traj._durations[segment]) * fraction;
     }
-    PathPosition PathPosition::from_t(const Trajectory &traj, TRel t)
+    PathPosition PathPosition::from_t(const Trajectory &traj, TAbs t)
     {
-        auto segment_iter = upper_bound(traj._timestamps.begin(), traj._timestamps.end(), t);
-        auto segment_idx = distance(traj._timestamps.begin(), segment_iter) - 1;
+        auto segment_iter = upper_bound(traj._durations.begin(), traj._durations.end(), t);
+        auto segment_idx = distance(traj._durations.begin(), segment_iter) - 1;
         segment_idx = min((long)traj.size() - 1L, max(0L, segment_idx)); // clip the segment index
 
-        auto t0 = traj._timestamps[segment_idx], t1 = traj._timestamps[segment_idx+1];
+        auto t0 = traj._durations[segment_idx], t1 = traj._durations[segment_idx+1];
 
         return PathPosition(segment_idx, (t - t0) / (t1 - t0));
     }
 
     // this method is analog to PathPosition::from_s(path, s_list)
-    vector<PathPosition> PathPosition::from_t(const Trajectory &path, const std::vector<TRel> &t_list)
+    vector<PathPosition> PathPosition::from_t(const Trajectory &path, const std::vector<TAbs> &t_list)
     {
         vector<PathPosition> result;
         result.reserve(t_list.size());
@@ -36,10 +36,10 @@ namespace traji
                 result.push_back(PathPosition::from_t(path, t));
             else
             {
-                while (t > path._timestamps[cur_idx] && cur_idx < path.size())
+                while (t > path._durations[cur_idx] && cur_idx < path.size())
                     cur_idx++;
 
-                auto t0 = path._timestamps[cur_idx-1], t1 = path._timestamps[cur_idx];
+                auto t0 = path._durations[cur_idx-1], t1 = path._durations[cur_idx];
                 result.push_back(PathPosition(cur_idx - 1, (t - t0) / (t1 - t0)));
 
                 cur_t = t;
@@ -52,7 +52,7 @@ namespace traji
     {
         assert (segment_idx >= 0 && segment_idx <= _line.size() - 2);
 
-        TRel dt = _timestamps[segment_idx+1] - _timestamps[segment_idx];
+        TRel dt = _durations[segment_idx+1] - _durations[segment_idx];
         Vector2 p1(_line[segment_idx+1].get<0>(), _line[segment_idx+1].get<1>());
         Vector2 p2(_line[segment_idx].get<0>(), _line[segment_idx].get<1>());
         assert(dt != 0);
@@ -92,7 +92,7 @@ namespace traji
     {
         assert (point_idx >= 1 && point_idx <= _line.size() - 2);
 
-        TRel dt = (_timestamps[point_idx+1] - _timestamps[point_idx-1]) / 2;
+        TRel dt = (_durations[point_idx+1] - _durations[point_idx-1]) / 2;
         Vector2 vel1 = solve_velocity(point_idx - 1);
         Vector2 vel2 = solve_velocity(point_idx);
         assert(dt != 0);
@@ -121,7 +121,7 @@ namespace traji
         }
     }
 
-    Trajectory Trajectory::resample_at(const std::vector<TRel> &t_list) const
+    Trajectory Trajectory::resample_at(const std::vector<TAbs> &t_list) const
     {
         vector<PathPosition> pos_list = PathPosition::from_t(*this, t_list);
         vector<Point> plist; plist.reserve(t_list.size());
@@ -219,11 +219,11 @@ namespace traji
 
         Trajectory result;
         result._line.reserve(t.rows());
-        result._timestamps.reserve(t.rows());
+        result._durations.reserve(t.rows());
         for (size_t i = 0; i < t.rows(); i++)
         {
             result._line.emplace_back(x(i), y(i));
-            result._timestamps.emplace_back(t(i));
+            result._durations.emplace_back(t(i));
         }
         result.update_distance();
         return result;
@@ -280,11 +280,11 @@ namespace traji
 
         Trajectory result;
         result._line.reserve(t.rows());
-        result._timestamps.reserve(t.rows());
+        result._durations.reserve(t.rows());
         for (size_t i = 0; i < t.rows(); i++)
         {
             result._line.emplace_back(nx(i), ny(i));
-            result._timestamps.emplace_back(t(i));
+            result._durations.emplace_back(t(i));
         }
         result.update_distance();
         return result;

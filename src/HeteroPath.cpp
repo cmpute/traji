@@ -83,12 +83,12 @@ namespace traji
         }
     }
 
-    TRel PathPosition::to_s(const HeteroPath& path) const
+    TAbs PathPosition::to_s(const HeteroPath& path) const
     {
         return path._distance[segment] + (path._distance[segment+1] - path._distance[segment]) * fraction;
     }
 
-    PathPosition PathPosition::from_s(const HeteroPath& path, TRel s)
+    PathPosition PathPosition::from_s(const HeteroPath& path, TAbs s)
     {
         auto segment_iter = upper_bound(path._distance.begin(), path._distance.end(), s);
         auto segment_idx = distance(path._distance.begin(), segment_iter) - 1;
@@ -131,7 +131,8 @@ namespace traji
             }
         }
 
-        result.update_distance(_distance[0]);
+        result.update_distance();
+        result.s0 = _distance[0];
         return result;
     }
 }
