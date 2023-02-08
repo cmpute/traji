@@ -36,3 +36,6 @@ build/
 
 # Jupyter notebook
 examples/.ipynb_checkpoints/
+
+# VSCode
+.vscode/settings.json

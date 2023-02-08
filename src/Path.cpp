@@ -14,11 +14,7 @@ namespace traji
 {
     TRel PathPosition::to_rel_s(const Path &path) const
     {
-        TRel rel_s = (path._distance[segment+1] - path._distance[segment]) * fraction;
-        if (segment != 0) {
-            rel_s += path._distance[segment] - 1;
-        }
-        return rel_s;
+        return path._distance[segment] + (path._distance[segment+1] - path._distance[segment]) * fraction;
     }
     TAbs PathPosition::to_s(const Path &path) const
     {
@@ -27,20 +23,16 @@ namespace traji
 
     PathPosition PathPosition::from_rel_s(const Path &path, TRel s)
     {
-        if (s < 0) {
-            return PathPosition(0, s / path._distance.front());
-        }
-
         auto segment_iter = upper_bound(path._distance.begin(), path._distance.end(), s);
-        auto segment_idx = distance(path._distance.begin(), segment_iter);
-        segment_idx = min((long)path.size() - 1L, segment_idx); // clip the segment index
+        auto segment_idx = distance(path._distance.begin(), segment_iter) - 1;
+        segment_idx = min((long)path.size() - 1L, max(0L, segment_idx)); // clip the segment index
 
         auto s0 = path._distance[segment_idx], s1 = path._distance[segment_idx+1];
 
         return PathPosition(segment_idx, (s - s0) / (s1 - s0));
     }
-    
-    PathPosition PathPosition::from_s(const Path &path, TAbs s) {
+    PathPosition PathPosition::from_s(const Path &path, TAbs s)
+    {
         return from_rel_s(path, s - path.s0);
     }
 
@@ -67,7 +59,7 @@ namespace traji
         auto current_s = to_rel_s(path);
         auto target_s = current_s - s;
         int i = segment;
-        for (; i >= 0; i--)
+        for (; i > 0; i--)
             if (path._distance[i] < target_s) { break; }
 
         auto s0 = path._distance[i], s1 = path._distance[i+1];
@@ -82,12 +74,12 @@ namespace traji
             return;
         }
 
-        TRel s = s0;
+        TRel s = 0;
         _distance.resize(_line.size() - 1);
-        for (size_t i = 0; i < _distance.size(); i++)
+        _distance[0] = 0;
+        for (size_t i = 1; i < _line.size(); i++)
         {
-            size_t j = i + 1;
-            TRel d = distance(_line[i], _line[j]);
+            TRel d = distance(_line[i-1], _line[i]);
             if (d > 1e-6) { // 1e-6 is approximately 8*epsilon, the distance() function
                             // can produce several epsilons even if the two points are the same
                 s += d;
@@ -95,8 +87,8 @@ namespace traji
             } else {
                 // remove duplicate points to avoid weirdness
                 // TODO: this method will cause problem for Trajectory
-                _line.erase(_line.begin() + j);
-                _distance.erase(_distance.begin() + j);
+                _line.erase(_line.begin() + i);
+                _distance.erase(_distance.begin() + i);
                 i--;
             }
         }
@@ -237,8 +229,8 @@ namespace traji
             }
         }
 
-        result.s0 = s0;
         result.update_distance();
+        result.s0 = s0;
         return result;
     }
 
@@ -400,8 +392,8 @@ namespace traji
         if (residual_s > segment_length)
             result._line.push_back(_line.back());
 
-        result.s0 = s0;
         result.update_distance();
+        result.s0 = s0;
         return result;
     }
 
@@ -418,7 +410,7 @@ namespace traji
             result._segments.emplace_back(HeteroSegment {
                 SegmentType::Line, std::vector<TRel>()
             });
-            result._distance = { _distance[0] };
+            result._distance = { _distance[0], _distance[1] };
             return result;
         }
 

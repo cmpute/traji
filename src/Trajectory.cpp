@@ -8,11 +8,16 @@ using namespace std::placeholders;
 
 namespace traji
 {
-    TAbs PathPosition::to_t(const Trajectory &traj) const
+    TRel PathPosition::to_rel_t(const Trajectory &traj) const
     {
         return traj._durations[segment] + (traj._durations[segment+1] - traj._durations[segment]) * fraction;
     }
-    PathPosition PathPosition::from_t(const Trajectory &traj, TAbs t)
+    TAbs PathPosition::to_t(const Trajectory &traj) const
+    {
+        return to_rel_t(traj) + traj.t0;
+    }
+
+    PathPosition PathPosition::from_rel_t(const Trajectory &traj, TRel t)
     {
         auto segment_iter = upper_bound(traj._durations.begin(), traj._durations.end(), t);
         auto segment_idx = distance(traj._durations.begin(), segment_iter) - 1;
@@ -21,6 +26,10 @@ namespace traji
         auto t0 = traj._durations[segment_idx], t1 = traj._durations[segment_idx+1];
 
         return PathPosition(segment_idx, (t - t0) / (t1 - t0));
+    }
+    PathPosition PathPosition::from_t(const Trajectory &traj, TAbs t)
+    {
+        return from_rel_t(traj, t - traj.t0);
     }
 
     // this method is analog to PathPosition::from_s(path, s_list)
@@ -46,6 +55,28 @@ namespace traji
             }
 
         return result;
+    }
+
+    vector<TAbs> Trajectory::timestamps() const
+    {
+        vector<TAbs> stamps;
+        transform(_durations.begin(), _durations.end(),
+            std::back_inserter(stamps), [this](TRel d) { return t0 + d; });
+        return stamps;
+    }
+    void Trajectory::update_duration(vector<TAbs> &&timestamps)
+    {
+        if (_line.size() <= 1)
+            return;
+
+        TRel t = 0;
+        _durations.resize(_line.size() - 1);
+        _durations[0] = 0;
+        for (size_t i = 1; i < _line.size(); i++)
+        {
+            t += timestamps[i] - timestamps[i-1];
+            _durations[i] = t;
+        }
     }
 
     Vector2 Trajectory::solve_velocity(size_t segment_idx) const

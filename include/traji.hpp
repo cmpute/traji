@@ -3,8 +3,6 @@
 
 // TODO: some big changes
 // 1. fix TRel to float, while always use double for s0 and t0, and store the difference from s0 / t0 instead.
-// 2. remove PathPosition::component
-// 3. add function to calculate similarity between two path?
 
 #include <vector>
 #include <utility>
@@ -129,7 +127,9 @@ struct PathPosition
     PathPosition backward(const Path &path, TRel s) const;
 private:
     TRel to_rel_s(const Path &path) const;
-    static PathPosition from_rel_s(const Path &path, TRel s);;
+    TRel to_rel_t(const Trajectory &traj) const;
+    static PathPosition from_rel_s(const Path &path, TRel s);
+    static PathPosition from_rel_t(const Trajectory &traj, TRel t);
 };
 
 /// (immutable) non-parametric linestring
@@ -144,7 +144,7 @@ protected:
     LineString _line;
 
     // The distance of each vertices )starting from the second) to the first vertex along the line.
-    // It has a length of n-1, where n is the number of vetices.
+    // It has a length of n, where n is the number of vetices. The first value must be 0 (if exists).
     std::vector<TRel> _distance;
 
     /// Recalculate the _distance values
@@ -259,11 +259,11 @@ public:
 
 protected:
     // The time elapsed from t0 at each vertices, ie timestamps but subtracted by t0.
-    // It has a length of n-1, where n is the number of vetices.
+    // It has a length of n, where n is the number of vetices. The first value must be 0.
     std::vector<TRel> _durations;
     
     // Calculate the duration values
-    std::vector<TRel> calc_duration(std::vector<TAbs> &&timestamps);
+    void update_duration(std::vector<TAbs> &&timestamps);
 
 private:
     Vector2 solve_velocity(size_t segment_idx) const;
@@ -275,11 +275,17 @@ public:
     friend class CTRATrajectory;
 
     inline Trajectory() {}
-    inline Trajectory(const Path& path, const std::vector<TAbs> &timestamps) : Path(path), _durations(calc_duration(std::vector<TAbs>(timestamps))) {}
-    inline Trajectory(Path&& path, std::vector<TAbs> &&timestamps) : Path(path), _durations(calc_duration(std::vector<TAbs>(timestamps))) {}
+    inline Trajectory(const Path& path, const std::vector<TAbs> &timestamps) : Path(path), _durations() {
+        update_duration(std::vector<TAbs>(timestamps));
+    }
+    inline Trajectory(Path&& path, std::vector<TAbs> &&timestamps) : Path(path), _durations() {
+        update_duration(std::vector<TAbs>(timestamps));
+    }
     template<typename Iterator, typename TIterator>
     inline Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end, TAbs s0 = 0)
-        : Path(begin, end, s0), _durations(calc_duration(std::vector<TAbs>(t_begin, t_end))) { }
+        : Path(begin, end, s0), _durations() {
+        update_duration(std::vector<TAbs>(t_begin, t_end));
+    }
 
     /// @brief Create the trajectory based on a path, assuming that the speed is constant along the trajectory.
     /// @param path The reference path
@@ -293,7 +299,7 @@ public:
         }
     }
 
-    inline const std::vector<TAbs>& timestamps() const; // TODO: implement
+    std::vector<TAbs> timestamps() const;
     inline const TRel duration() const { return _durations.back() - _durations.front(); }
 
     /// Get the point indicated by the time
@@ -418,7 +424,7 @@ protected:
     std::vector<HeteroSegment> _segments;
     std::vector<TRel> _distance; // same as Path::_distance
 
-    /// Update _distance values
+    /// Update _distance values [Deprecated interface]
     void update_distance(TRel s0 = 0);
 
 public:
