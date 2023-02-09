@@ -166,10 +166,10 @@ public:
 
     inline Path() {}
     template<typename Iterator>
-    inline Path(Iterator begin, Iterator end, TRel s0 = 0) : _line(begin, end) { update_distance(); }
+    inline Path(Iterator begin, Iterator end, TRel s0_ = 0) : _line(begin, end), s0(s0_) { update_distance(); }
     inline Path(std::initializer_list<Point> l) : Path(l.begin(), l.end()) {}
-    inline Path(const std::vector<Point> &l, TRel s0 = 0): Path(l.begin(), l.end(), s0) {}
-    inline Path(std::vector<Point> &&l, TRel s0 = 0): Path(l.begin(), l.end(), s0) {}
+    inline Path(const std::vector<Point> &l, TRel s0_ = 0): Path(l.begin(), l.end(), s0_) {}
+    inline Path(std::vector<Point> &&l, TRel s0_ = 0): Path(l.begin(), l.end(), s0_) {}
 
     /// The size of a path is the number of segments
     inline std::size_t size() const { return _line.empty() ? 0 : _line.size() - 1; }

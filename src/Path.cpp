@@ -75,7 +75,7 @@ namespace traji
         }
 
         TRel s = 0;
-        _distance.resize(_line.size() - 1);
+        _distance.resize(_line.size());
         _distance[0] = 0;
         for (size_t i = 1; i < _line.size(); i++)
         {
@@ -585,7 +585,7 @@ namespace std
         ss << '[' << to_string(value.vertices()[0]);
         for (size_t i = 1; i < value.vertices().size(); i++)
             ss << ", " << to_string(value.vertices()[i]);
-        ss << ']';
+        ss << "], s0=" << value.s0;
         return ss.str();
     }
 
