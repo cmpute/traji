@@ -17,8 +17,9 @@ namespace traji
         }
 
         /// Calculate the signed distance from point to the segment **line**
-        /// @return (distance to line, fraction of the foot point)
-        /// The distance is positive if the point is at left hand side of the direction of line (p0 -> p1)
+        /// @return (distance to line, distance from p0 to the foot point)
+        /// The first distance is positive if the point is on the left hand side of the direction of line (p0 -> p1)
+        /// The second distance is positive if the foot point is on the ray p0->p1
         inline pair<TRel, TRel> sdistance(const Point &p0, const Point &p1, const TRel l, const Point &p)
         {
             auto x0 = p0.get<0>(), y0 = p0.get<1>();
@@ -37,24 +38,12 @@ namespace traji
             auto ds = (dx*y - dy*x + x0*y1 - x1*y0) / l;
             auto d0 = (x0*x0+x*dx-x0*x1 + y0*y0+y*dy-y0*y1) / l; // distance from foot point to p0
             
-            return make_pair(ds, d0 / l);
+            return make_pair(ds, d0);
         }
 
         inline TRel tangent(const Point &p0, const Point &p1)
         {
             return atan2(p1.get<1>() - p0.get<1>(), p1.get<0>() - p0.get<0>());
-        }
-
-        /// Convert the sdistance to normal unsigned (squared) distance
-        inline TRel distance2(const pair<TRel, TRel> &sdist, const TRel l)
-        {
-            auto ds = sdist.first, d0 = sdist.second * l;
-            if (sdist.second < 0)
-                return ds * ds + d0 * d0;
-            else if (sdist.second > 1)
-                return ds * ds + (d0 - 1) * (d0 - 1);
-            else
-                return ds * ds;
         }
     };
 

@@ -190,21 +190,34 @@ namespace traji
     {
         assert(!_line.empty()); // calculate projection on an empty path is illegal
 
-        vector<pair<TRel, TRel>> dists(_line.size() - 1);
-        vector<TRel> comp_dists(_line.size() - 1); // actual distance for comparison
+        vector<pair<TRel, TRel>> dists(_line.size() - 1); // (dist, foot ratio)
+        vector<TRel> cmp(_line.size() - 1); // squared distance for comparison
         for (int i = 1; i < _line.size(); i++)
         {
             // calculate signed distance
-            int iprev = i - 1;
-            auto l = _distance[i] - _distance[iprev];
-            dists[iprev] = line::sdistance(_line[iprev], _line[i], l, point);
-
-            // calculate squared distance for comparison
-            comp_dists[iprev] = line::distance2(dists[iprev], l);
+            int j = i - 1; // the index of the segment
+            auto l = _distance[i] - _distance[j];
+            auto proj = line::sdistance(_line[j], _line[i], l, point);
+            
+            auto ds = proj.first;
+            if (proj.second < 0) {
+                // the shortest distance is to the previous vertex
+                auto dr = proj.second;
+                cmp[j] = ds * ds + dr * dr;
+                dists[j] = make_pair(copysign(sqrt(cmp[j]), ds), 0.);
+            } else if (proj.second > l) {
+                // the shortest distance is to the next vertex
+                auto dr = proj.second - l;
+                cmp[j] = ds * ds + dr * dr;
+                dists[j] = make_pair(copysign(sqrt(cmp[j]), ds), 1.);
+            } else {
+                cmp[j] = ds * ds;
+                dists[j] = make_pair(ds, proj.second / l);
+            }
         }
 
-        auto min_idx = distance(comp_dists.begin(),
-            min_element(comp_dists.begin(), comp_dists.end()));
+        auto min_idx = distance(cmp.begin(),
+            min_element(cmp.begin(), cmp.end()));
 
         return make_pair(dists[min_idx].first,
             PathPosition(min_idx, dists[min_idx].second));
