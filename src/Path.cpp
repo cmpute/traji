@@ -186,34 +186,41 @@ namespace traji
         return values[pos.segment] * pos.fraction + values[pos.segment+1] * (1 - pos.fraction);
     }
 
-    pair<TRel, PathPosition> Path::project(const Point &point) const
+    pair<TRel, TRel> Path::project_segment(size_t segment_idx, const Point &p, bool extend) const
+    {
+        // calculate signed distance
+        int i = segment_idx, j = segment_idx + 1;
+        auto l = _distance[j] - _distance[i];
+        auto proj = line::sdistance(_line[i], _line[j], l, p);
+        
+        auto ds = proj.first;
+        if (proj.second < 0 && !(extend && i == 0)) {
+            // the shortest distance is to the previous vertex
+            // don't check when extended and on the first segment
+            auto dr = proj.second;
+            auto d = ds * ds + dr * dr;
+            return make_pair(copysign(sqrt(d), ds), 0.);
+        } else if (proj.second > l && !(extend && j == _line.size() - 1)) {
+            // the shortest distance is to the next vertex
+            // don't check when extended and on the last segment
+            auto dr = proj.second - l;
+            auto d = ds * ds + dr * dr;
+            return make_pair(copysign(sqrt(d), ds), 1.);
+        } else {
+            return make_pair(ds, proj.second / l);
+        }
+    }
+
+    pair<TRel, PathPosition> Path::project(const Point &point, bool extend) const
     {
         assert(!_line.empty()); // calculate projection on an empty path is illegal
 
         vector<pair<TRel, TRel>> dists(_line.size() - 1); // (dist, foot ratio)
-        vector<TRel> cmp(_line.size() - 1); // squared distance for comparison
-        for (int i = 1; i < _line.size(); i++)
+        vector<TRel> cmp(_line.size() - 1); // absolute distance for comparison
+        for (int i = 0; i < _line.size() - 1; i++)
         {
-            // calculate signed distance
-            int j = i - 1; // the index of the segment
-            auto l = _distance[i] - _distance[j];
-            auto proj = line::sdistance(_line[j], _line[i], l, point);
-            
-            auto ds = proj.first;
-            if (proj.second < 0) {
-                // the shortest distance is to the previous vertex
-                auto dr = proj.second;
-                cmp[j] = ds * ds + dr * dr;
-                dists[j] = make_pair(copysign(sqrt(cmp[j]), ds), 0.);
-            } else if (proj.second > l) {
-                // the shortest distance is to the next vertex
-                auto dr = proj.second - l;
-                cmp[j] = ds * ds + dr * dr;
-                dists[j] = make_pair(copysign(sqrt(cmp[j]), ds), 1.);
-            } else {
-                cmp[j] = ds * ds;
-                dists[j] = make_pair(ds, proj.second / l);
-            }
+            dists[i] = project_segment(i, point, extend);
+            cmp[i] = abs(dists[i].first);
         }
 
         auto min_idx = distance(cmp.begin(),
@@ -221,6 +228,49 @@ namespace traji
 
         return make_pair(dists[min_idx].first,
             PathPosition(min_idx, dists[min_idx].second));
+    }
+
+    pair<TRel, PathPosition> Path::project_local(const Point &point, const PathPosition& ref, bool extend) const
+    {
+        // use the current distance of ref as the best distance
+        size_t best_segment = ref.segment;
+        auto best_proj = project_segment(best_segment, point, extend);
+        TRel best_dist = abs(best_proj.first);
+        TRel last_forward = best_dist, last_backward = best_dist;
+
+        // forward pass
+        for (int i = ref.segment + 1; i < _line.size() - 1; i++)
+        {
+            auto proj = project_segment(i, point, extend);
+            auto dist = abs(proj.first);
+
+            if (dist < best_dist) {
+                best_proj = proj;
+                best_dist = dist;
+                best_segment = i;
+            } else if (dist > last_forward) {
+                break;
+            }
+            last_forward = dist;
+        }
+
+        // backward pass
+        for (int i = ref.segment - 1; i >= 0; i--)
+        {            
+            auto proj = project_segment(i, point, extend);
+            auto dist = abs(proj.first);
+
+            if (dist < best_dist) {
+                best_proj = proj;
+                best_dist = dist;
+                best_segment = i;
+            } else if (dist < last_backward) {
+                break;
+            }
+            last_backward = dist;
+        }
+
+        return make_pair(best_proj.first, PathPosition(best_segment, best_proj.second));
     }
 
     Path Path::densify(TRel resolution) const

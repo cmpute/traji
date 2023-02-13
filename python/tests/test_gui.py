@@ -13,7 +13,13 @@ YELLOW = (255,255, 0)
 STATES = dict(
     # default: default state with hoving effects
     # drawing: drawing polygon
-    stage = None
+    stage = None,
+
+    # whether enable extended line when projecting
+    extend = False,
+
+    # whether enable projection locally
+    local = False,
 )
 
 class Button:
@@ -45,6 +51,7 @@ class PolylineDrawer:
     def __init__(self) -> None:
         self.polyline: List[Tuple[float, float]] = []
         self.last_point: Optional[Tuple[float, float]] = None
+        self.last_proj = None
         self.hover_point: Optional[traji.Point] = None
         self.font = pygame.font.Font(None, 20)
 
@@ -55,6 +62,7 @@ class PolylineDrawer:
             return
 
         # initialize
+        self.last_proj = None
         if self.last_point is None:
             self.polyline = []
 
@@ -84,8 +92,12 @@ class PolylineDrawer:
 
         if STATES['stage'] != "drawing":
             path = traji.Path(self.polyline)
-            dist, proj = path.project(self.hover_point)
+            if STATES['local'] and (self.last_proj is not None):
+                dist, proj = path.project_local(self.hover_point, self.last_proj, extend=STATES['extend'])
+            else:
+                dist, proj = path.project(self.hover_point, extend=STATES['extend'])
             perp = path.point_at(proj)
+            self.last_proj = proj
             pygame.draw.line(screen, YELLOW,
                 [self.hover_point.x, self.hover_point.y],
                 [perp.x, perp.y]
@@ -96,6 +108,19 @@ class PolylineDrawer:
             text_rect = pygame.Rect((cx - 10, cy - 10, 10, 10))
             text = self.font.render("%.2f @ %.2f" % (dist, proj.fraction), True, YELLOW)
             screen.blit(text, text_rect)
+
+class StatusBar:
+    def __init__(self) -> None:
+        self.font = pygame.font.Font(None, 20)
+
+    def dispatch(self, _event):
+        pass # no event will be handled here
+
+    def draw(self, screen):
+        text_rect = pygame.Rect((20, 580, 50, 10))
+        text = self.font.render("Stage: {}, Extend: {}, Local: {}".format(STATES['stage'], STATES['extend'], STATES['local']),
+            True, GREEN)
+        screen.blit(text, text_rect)
 
 def get_button_actions(btn):
     if btn == "draw":
@@ -108,6 +133,16 @@ def get_button_actions(btn):
                 print("Enter drawing stage")
 
         return onclick_draw
+    elif btn == "ext":
+        def onclick_ext():
+            STATES['extend'] = not STATES['extend']
+
+        return onclick_ext
+    elif btn == "local":
+        def onclick_local():
+            STATES['local'] = not STATES['local']
+
+        return onclick_local
 
 def main():
     
@@ -120,9 +155,12 @@ def main():
     ##### objects #####
 
     STATES['stage'] = "default"
-    btn_draw = Button("draw", (20, 20, 50, 30), RED, GREEN, get_button_actions("draw"))
+    btn_draw = Button("draw", (20, 20, 80, 30), RED, GREEN, get_button_actions("draw"))
+    btn_ext = Button("extend", (20, 60, 80, 30), RED, GREEN, get_button_actions("ext"))
+    btn_local = Button("local", (20, 100, 80, 30), RED, GREEN, get_button_actions("local"))
     poly_drawer = PolylineDrawer()
-    widgets = [btn_draw, poly_drawer]
+    status_bar = StatusBar()
+    widgets = [btn_draw, btn_ext, btn_local, poly_drawer, status_bar]
 
     ##### mainloop #####
 

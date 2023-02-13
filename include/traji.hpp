@@ -158,6 +158,11 @@ private:
     Path respacing0(TRel resolution) const;
     TRel solve_curvature(size_t segment_idx) const;
 
+    /// Calculate the projection from p to certain segment.
+    /// @param extend allow projection on the extended ray. Only applicable to the first and last segment
+    /// @return (distance to the path, ratio of the projected point position normalized to 0~1)
+    std::pair<TRel, TRel> project_segment(size_t segment_idx, const Point &p, bool extend) const;
+
 public:
     friend class PathPosition;
     friend class QuinticPolyTrajectory;
@@ -223,12 +228,15 @@ public:
 
     /// Get the signed distance and foot point from a point to the path. The distance is positive
     /// if the point is at left hand side of the direction of path
+    /// @param extend whether allow the foot point to be on the extended lines at the both ends
     /// @return (distance to the path, projection point position)
-    std::pair<TRel, PathPosition> project(const Point &point) const;
+    std::pair<TRel, PathPosition> project(const Point &point, bool extend = false) const;
 
-    // TODO: add a project_ext, which projects the point onto the extended line at the last segment.
-    //       it should also allow specifying the expected path position. If the path contains loop,
-    //       then we might just want a local minimum based on a starting s value
+    /// Get the signed distance and foot point from a point to the path. This method searches the local
+    /// minimum of the distance.
+    /// @param extend whether allow the foot point to be on the extended lines at the both ends
+    /// @return (distance to the path, projection point position)
+    std::pair<TRel, PathPosition> project_local(const Point &point, const PathPosition& ref, bool extend = false) const;
 
     /// Return the path in a form with equally space points (interpolating over s)
     /// The starting and end point of the original line string is guaranteed to be included and not smoothed
