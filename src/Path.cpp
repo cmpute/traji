@@ -299,6 +299,7 @@ namespace traji
 
     vector<TRel> Path::calc_feasible_radius(TRel smooth_radius) const
     {
+        // TODO: this function is incorrect
         assert(_line.size() > 2);
         vector<TRel> radius(_line.size() - 2, smooth_radius);
         vector<TRel> seglen = segment_lengths();
@@ -427,10 +428,11 @@ namespace traji
             {
                 if (residual_s >= segment_length)
                 {
-                    // jump to the next arc
+                    // if it's the last segment, then break
                     if (segment_idx >= _line.size() - 2)
                         break;
 
+                    // otherwise jump to the next arc
                     residual_s -= segment_length;
 
                     on_arc = true;

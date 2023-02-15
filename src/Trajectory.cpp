@@ -64,11 +64,12 @@ namespace traji
             std::back_inserter(stamps), [this](TRel d) { return t0 + d; });
         return stamps;
     }
-    void Trajectory::update_duration(vector<TAbs> &&timestamps)
+    void Trajectory::update_duration(const vector<TAbs> &timestamps)
     {
         if (_line.size() <= 1)
             return;
 
+        t0 = timestamps[0];
         TRel t = 0;
         _durations.resize(_line.size() - 1);
         _durations[0] = 0;
@@ -158,7 +159,7 @@ namespace traji
         vector<Point> plist; plist.reserve(t_list.size());
         transform(pos_list.begin(), pos_list.end(),
             std::back_inserter(plist), std::bind(&Path::point_at, this, _1));
-        return Trajectory(Path(move(plist)), t_list);
+        return Trajectory(move(plist), move(t_list));
     }
 
     QuinticPolyTrajectory::QuinticPolyTrajectory(

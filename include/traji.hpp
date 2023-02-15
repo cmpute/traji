@@ -137,7 +137,7 @@ class Path
 {
 public:
     /// @brief Distance of the first point along a certain path, default to 0. All s values will be offset by this amount when querying.
-    TAbs s0 = 0;
+    TAbs s0 = 0.0;
 
 protected:
     // The geometry of the line string
@@ -177,8 +177,8 @@ public:
     inline Path(std::vector<Point> &&l, TRel s0_ = 0): Path(l.begin(), l.end(), s0_) {}
 
     /// The size of a path is the number of segments
-    inline std::size_t size() const { return _line.empty() ? 0 : _line.size() - 1; }
-    inline TRel length() const { return _distance.back() - _distance.front(); }
+    inline std::size_t size() const { return _line.empty() ? 0 : (_line.size() - 1); }
+    inline TRel length() const { return _line.empty() ? 0.0 : (_distance.back() - _distance.front()); }
     inline bool empty() const { return _line.empty(); }
     inline std::vector<TRel> segment_lengths() const
     {
@@ -267,7 +267,7 @@ class Trajectory : public Path
 {
 public:
     /// @brief Timestamp of the first point, default to 0. All t values will be offset by this amount when querying.
-    TAbs t0;
+    TAbs t0 = 0.0;
 
 protected:
     // The time elapsed from t0 at each vertices, ie timestamps but subtracted by t0.
@@ -275,7 +275,7 @@ protected:
     std::vector<TRel> _durations;
     
     // Calculate the duration values
-    void update_duration(std::vector<TAbs> &&timestamps);
+    void update_duration(const std::vector<TAbs> &timestamps);
 
 private:
     Vector2 solve_velocity(size_t segment_idx) const;
@@ -312,7 +312,7 @@ public:
     }
 
     std::vector<TAbs> timestamps() const;
-    inline const TRel duration() const { return _durations.back() - _durations.front(); }
+    inline const TRel duration() const { return _line.empty() ? 0.0 : (_durations.back() - _durations.front()); }
 
     /// Get the point indicated by the time
     using Path::point_at;

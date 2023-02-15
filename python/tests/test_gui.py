@@ -1,6 +1,10 @@
 import pygame
+import time
+from addict import Dict
 import traji
 from typing import Optional, List, Tuple
+
+INIT_TIME = time.time()
 
 WHITE = (255,255,255)
 BLACK = (  0,  0,  0)
@@ -10,7 +14,7 @@ BLUE  = (  0,  0,255)
 YELLOW = (255,255, 0)
 
 # global state storage
-STATES = dict(
+STATES = Dict(
     # default: default state with hoving effects
     # drawing: drawing polygon
     stage = None,
@@ -20,6 +24,12 @@ STATES = dict(
 
     # whether enable projection locally
     local = False,
+
+    # marks events to be handled
+    flags = Dict(
+        respacing = False,
+        densify = False,
+    )
 )
 
 class Button:
@@ -47,16 +57,41 @@ class Button:
         pygame.draw.rect(screen, color, self.rect)
         screen.blit(self.text, self.text_rect)
 
+def path_to_list(path: traji.Path) -> List[Tuple[float, float]]:
+    return [(p.x, p.y) for p in path]
+
+def fib_under(l: float) -> List[int]:
+    i, j = 1, 1
+    res = [0]
+    while j <= l * 1.1:
+        i, j = j, i+j
+        res.append(i)
+    return res
+
 class PolylineDrawer:
     def __init__(self) -> None:
         self.polyline: List[Tuple[float, float]] = []
+        self.timestamps: List[float] = [] # for trajectory
         self.last_point: Optional[Tuple[float, float]] = None
         self.last_proj = None
         self.hover_point: Optional[traji.Point] = None
         self.font = pygame.font.Font(None, 20)
 
     def dispatch(self, event):
-        if STATES['stage'] != 'drawing':
+        if STATES.stage != 'drawing':
+            # handles the changes to the polyline
+            if STATES.flags.respacing:
+                self.polyline = path_to_list(traji.Path(self.polyline).respacing(10, 50))
+                STATES.flags.respacing = False
+            if STATES.flags.densify:
+                self.polyline = path_to_list(traji.Path(self.polyline).densify(10))
+                STATES.flags.densify = False
+            if STATES.flags.resample:
+                path = traji.Path(self.polyline)
+                self.polyline = path_to_list(path.resample_from(fib_under(path.length)))
+                STATES.flags.resample = False
+
+            # log the hover position
             if event.type == pygame.MOUSEMOTION:
                 self.hover_point = traji.Point(event.pos)
             return
@@ -65,6 +100,7 @@ class PolylineDrawer:
         self.last_proj = None
         if self.last_point is None:
             self.polyline = []
+            self.timestamps = []
 
         if event.type == pygame.MOUSEMOTION:
             self.last_point = event.pos
@@ -72,8 +108,9 @@ class PolylineDrawer:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1: # left
                 self.polyline.append(event.pos)
+                self.timestamps.append(time.time() - INIT_TIME)
             elif event.button == 3: # right
-                STATES['stage'] = 'default'
+                STATES.stage = 'default'
                 self.last_point = None
                 print("Exit drawing stage")
 
@@ -90,14 +127,24 @@ class PolylineDrawer:
             for p in self.polyline:
                 pygame.draw.circle(screen, WHITE, p, 3)
 
-        if STATES['stage'] != "drawing":
+        if STATES.stage != "drawing":
             path = traji.Path(self.polyline)
-            if STATES['local'] and (self.last_proj is not None):
-                dist, proj = path.project_local(self.hover_point, self.last_proj, extend=STATES['extend'])
+            if len(self.timestamps) == len(self.polyline):
+                # deal with trajectories
+                path = traji.Trajectory(path, self.timestamps)
+                if STATES.local and (self.last_proj is not None):
+                    dist, proj = path.project_local(self.hover_point, self.last_proj, extend=STATES.extend)
+                else:
+                    dist, proj = path.project(self.hover_point, extend=STATES.extend)
             else:
-                dist, proj = path.project(self.hover_point, extend=STATES['extend'])
-            perp = path.point_at(proj)
+                # deal with plan paths
+                if STATES.local and (self.last_proj is not None):
+                    dist, proj = path.project_local(self.hover_point, self.last_proj, extend=STATES.extend)
+                else:
+                    dist, proj = path.project(self.hover_point, extend=STATES.extend)
+
             self.last_proj = proj
+            perp = path.point_at(proj)
             pygame.draw.line(screen, YELLOW,
                 [self.hover_point.x, self.hover_point.y],
                 [perp.x, perp.y]
@@ -106,7 +153,10 @@ class PolylineDrawer:
             cx = (self.hover_point.x + perp.x) / 2
             cy = (self.hover_point.y + perp.y) / 2
             text_rect = pygame.Rect((cx - 10, cy - 10, 10, 10))
-            text = self.font.render("%.2f @ %.2f" % (dist, proj.fraction), True, YELLOW)
+            if isinstance(path, traji.Trajectory):
+                text = self.font.render("%.2f (%.2f) @ %.2f" % (dist, proj.fraction, proj.to_t(path)), True, YELLOW)
+            else:
+                text = self.font.render("%.2f (%.2f)" % (dist, proj.fraction), True, YELLOW)
             screen.blit(text, text_rect)
 
 class StatusBar:
@@ -118,31 +168,46 @@ class StatusBar:
 
     def draw(self, screen):
         text_rect = pygame.Rect((20, 580, 50, 10))
-        text = self.font.render("Stage: {}, Extend: {}, Local: {}".format(STATES['stage'], STATES['extend'], STATES['local']),
+        text = self.font.render("Stage: {}, Extend: {}, Local: {}".format(STATES.stage, STATES.extend, STATES.local),
             True, GREEN)
         screen.blit(text, text_rect)
 
 def get_button_actions(btn):
     if btn == "draw":
         def onclick_draw():
-            if STATES['stage'] == 'drawing':
-                STATES['stage'] = 'default'
+            if STATES.stage == 'drawing':
+                STATES.stage = 'default'
                 print("Exit drawing stage")
             else:
-                STATES['stage'] = 'drawing'
+                STATES.stage = 'drawing'
                 print("Enter drawing stage")
 
         return onclick_draw
+
     elif btn == "ext":
         def onclick_ext():
-            STATES['extend'] = not STATES['extend']
-
+            STATES.extend = not STATES.extend
         return onclick_ext
+
     elif btn == "local":
         def onclick_local():
-            STATES['local'] = not STATES['local']
-
+            STATES.local = not STATES.local
         return onclick_local
+
+    elif btn == "respacing":
+        def onclick_respacing():
+            STATES.flags.respacing = True
+        return onclick_respacing
+
+    elif btn == "densify":
+        def onclick_densify():
+            STATES.flags.densify = True
+        return onclick_densify
+
+    elif btn == "resample":
+        def onclick_resample():
+            STATES.flags.resample = True
+        return onclick_resample
 
 def main():
     
@@ -154,13 +219,16 @@ def main():
 
     ##### objects #####
 
-    STATES['stage'] = "default"
+    STATES.stage = "default"
     btn_draw = Button("draw", (20, 20, 80, 30), RED, GREEN, get_button_actions("draw"))
     btn_ext = Button("extend", (20, 60, 80, 30), RED, GREEN, get_button_actions("ext"))
     btn_local = Button("local", (20, 100, 80, 30), RED, GREEN, get_button_actions("local"))
+    btn_respacing = Button("respace", (20, 140, 80, 30), RED, GREEN, get_button_actions("respacing"))
+    btn_densify = Button("densify", (20, 180, 80, 30), RED, GREEN, get_button_actions("densify"))
+    btn_resample = Button("sample", (20, 220, 80, 30), RED, GREEN, get_button_actions("resample"))
     poly_drawer = PolylineDrawer()
     status_bar = StatusBar()
-    widgets = [btn_draw, btn_ext, btn_local, poly_drawer, status_bar]
+    widgets = [btn_draw, btn_ext, btn_local, btn_respacing, btn_densify, btn_resample, poly_drawer, status_bar]
 
     ##### mainloop #####
 
