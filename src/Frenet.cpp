@@ -66,7 +66,7 @@ Trajectory to_cartesian_rescale(const Path &ref, const Trajectory &traj)
     vector<Point> cartesian_points; cartesian_points.reserve(traj.size() + 1);
     for (size_t i = 0; i <= traj.size(); i++)
         cartesian_points.push_back(to_cartesian_hint(ref, traj.vertices()[i], pos_list[i]));
-    auto skewed_path = Path(move(cartesian_points));
+    auto skewed_path = Path(cartesian_points);
 
     // Adjust segment lengths to be proportional to the original trajectory
     auto seglen = traj.segment_lengths();

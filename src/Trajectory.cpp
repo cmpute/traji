@@ -64,14 +64,14 @@ namespace traji
             std::back_inserter(stamps), [this](TRel d) { return t0 + d; });
         return stamps;
     }
-    void Trajectory::update_duration(const vector<TAbs> &timestamps)
+    void Trajectory::update_duration(vector<TAbs> &&timestamps)
     {
         if (_line.size() <= 1)
             return;
 
         t0 = timestamps[0];
         TRel t = 0;
-        _durations.resize(_line.size() - 1);
+        _durations.resize(_line.size());
         _durations[0] = 0;
         for (size_t i = 1; i < _line.size(); i++)
         {

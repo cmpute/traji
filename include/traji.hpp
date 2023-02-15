@@ -275,7 +275,7 @@ protected:
     std::vector<TRel> _durations;
     
     // Calculate the duration values
-    void update_duration(const std::vector<TAbs> &timestamps);
+    void update_duration(std::vector<TAbs> &&timestamps);
 
 private:
     Vector2 solve_velocity(size_t segment_idx) const;
@@ -291,7 +291,7 @@ public:
         update_duration(std::vector<TAbs>(timestamps));
     }
     inline Trajectory(Path&& path, std::vector<TAbs> &&timestamps) : Path(path), _durations() {
-        update_duration(std::vector<TAbs>(timestamps));
+        update_duration(std::move(timestamps));
     }
     template<typename Iterator, typename TIterator>
     inline Trajectory(Iterator begin, Iterator end, TIterator t_begin, TIterator t_end, TAbs s0 = 0)
