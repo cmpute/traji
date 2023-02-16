@@ -80,8 +80,7 @@ namespace traji
         for (size_t i = 1; i < _line.size(); i++)
         {
             TRel d = distance(_line[i-1], _line[i]);
-            if (d > 1e-6) { // 1e-6 is approximately 8*epsilon, the distance() function
-                            // can produce several epsilons even if the two points are the same
+            if (d > numeric_limits<TRel>::epsilon() * 1024) { // guard for two points being too close
                 s += d;
                 _distance[i] = s;
             } else {

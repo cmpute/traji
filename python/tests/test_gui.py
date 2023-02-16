@@ -1,9 +1,12 @@
 import pygame
 import time
+import sys
 from addict import Dict
 import traji
+import numpy as np
 from typing import Optional, List, Tuple
 
+WINDOW_SIZE = (800, 600)
 INIT_TIME = time.time()
 
 WHITE = (255,255,255)
@@ -76,6 +79,17 @@ class PolylineDrawer:
         self.last_proj = None
         self.hover_point: Optional[traji.Point] = None
         self.font = pygame.font.Font(None, 20)
+
+        # load path from the file
+        if len(sys.argv) == 2:
+            width, height = WINDOW_SIZE
+            pad_w, pad_h = 80, 20
+            points = np.loadtxt(sys.argv[1], delimiter=',')
+            xmin, ymin = np.min(points, axis=0)
+            xmax, ymax = np.max(points, axis=0)
+            points[:, 0] = (points[:, 0] - xmin) / (xmax - xmin) * (width - 2*pad_w) + pad_w
+            points[:, 1] = (points[:, 1] - ymin) / (ymax - ymin) * (height - 2*pad_h) + pad_h
+            self.polyline = points.tolist()
 
     def dispatch(self, event):
         if STATES.stage != 'drawing':
@@ -214,7 +228,7 @@ def main():
     #### init #####
 
     pygame.init()
-    screen = pygame.display.set_mode((800,600))
+    screen = pygame.display.set_mode(WINDOW_SIZE)
     screen_rect = screen.get_rect()
 
     ##### objects #####
